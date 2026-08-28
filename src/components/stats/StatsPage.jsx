@@ -1,9 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { TopBar } from '../layout/TopBar.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { computeHabitStats } from '../../utils/habitStats.js'
 import { formatShortDate } from '../../utils/dateUtils.js'
+import { StatsRangeControl, rangeForPresetDays } from './StatsRangeControl.jsx'
+import { CategoryTimeSection } from './CategoryTimeSection.jsx'
+import { ScreenTimeSection } from './ScreenTimeSection.jsx'
 
 const STATUS_COLOR = {
   completed: 'var(--color-primary)',
@@ -64,9 +67,13 @@ function HabitCard({ item }) {
 export function StatsPage() {
   const items = useEntityStore((s) => s.items)
   const refreshAllInstances = useEntityStore((s) => s.refreshAllInstances)
+  const refreshAllJournals = useEntityStore((s) => s.refreshAllJournals)
+  const [range, setRange] = useState(() => rangeForPresetDays(7))
+
   useEffect(() => {
     refreshAllInstances()
-  }, [refreshAllInstances])
+    refreshAllJournals()
+  }, [refreshAllInstances, refreshAllJournals])
 
   const habits = items.filter((i) => i.isHabit && i.recurrence)
 
@@ -74,18 +81,28 @@ export function StatsPage() {
     <div className="stats-page">
       <TopBar />
       <div className="stats-page-content">
-        <h1>Habits</h1>
-        {habits.length === 0 ? (
-          <div className="empty-state">
-            No habits yet. Turn on "Track as habit" on a recurring item to see its stats here.
+        <h1>Stats</h1>
+
+        <StatsRangeControl from={range.from} to={range.to} onChange={setRange} />
+        <CategoryTimeSection from={range.from} to={range.to} />
+        <ScreenTimeSection from={range.from} to={range.to} />
+
+        <section className="stats-section">
+          <div className="stats-section-header">
+            <h2>Habits</h2>
           </div>
-        ) : (
-          <div className="habit-card-list">
-            {habits.map((item) => (
-              <HabitCard key={item.id} item={item} />
-            ))}
-          </div>
-        )}
+          {habits.length === 0 ? (
+            <div className="empty-state">
+              No habits yet. Turn on "Track as habit" on a recurring item to see its stats here.
+            </div>
+          ) : (
+            <div className="habit-card-list">
+              {habits.map((item) => (
+                <HabitCard key={item.id} item={item} />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   )

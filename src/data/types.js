@@ -61,6 +61,8 @@
  * @property {string} date - primary key, 'YYYY-MM-DD'
  * @property {string} content - HTML string
  * @property {string|null} mood - an emoji, or null if not set
+ * @property {string|null} spouseMood - spouse's mood emoji, or null if not set
+ * @property {number|null} screenTimeMinutes - total screen time for the day in minutes, or null if not logged
  * @property {string} updatedAt
  */
 

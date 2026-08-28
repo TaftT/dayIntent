@@ -1,5 +1,5 @@
 import * as repo from './index.js'
-import { todayStr } from '../utils/dateUtils.js'
+import { todayStr, addDaysStr } from '../utils/dateUtils.js'
 import { ensureInstancesGenerated } from './recurrence.js'
 
 let seedPromise = null
@@ -78,4 +78,42 @@ async function doSeed() {
     categoryId: personal.id,
     isUnscheduled: false,
   }).then((item) => repo.saveInstance({ itemId: item.id, date: today, isAllDay: true }))
+
+  // A little finalized history + screen-time logs so the Stats page's
+  // category-time and screen-time sections have something to show in dev.
+  const deepWork = await repo.saveItem({
+    title: 'Deep work',
+    durationMinutes: 120,
+    categoryId: work.id,
+    isUnscheduled: false,
+  })
+  for (let i = 1; i <= 10; i++) {
+    const date = addDaysStr(today, -i)
+    const weekday = new Date(date).getDay()
+    if (weekday >= 1 && weekday <= 5) {
+      await repo.saveInstance({
+        itemId: deepWork.id,
+        date,
+        time: '10:00',
+        durationMinutes: 120,
+        percentComplete: 100,
+        startPercent: 0,
+        finalPercent: 100,
+        status: 'completed',
+        finalized: true,
+      })
+      await repo.saveInstance({
+        itemId: gym.id,
+        date,
+        time: '17:30',
+        durationMinutes: 60,
+        percentComplete: i % 3 === 0 ? 50 : 100,
+        startPercent: 0,
+        finalPercent: i % 3 === 0 ? 50 : 100,
+        status: i % 3 === 0 ? 'worked_on' : 'completed',
+        finalized: true,
+      })
+    }
+    await repo.saveJournal({ date, screenTimeMinutes: 180 + ((i * 37) % 160) })
+  }
 }

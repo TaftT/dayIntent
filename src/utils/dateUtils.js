@@ -76,3 +76,13 @@ export function isTodayStr(dateStr) {
 export function formatShortDate(dateStr) {
   return format(fromDateStr(dateStr), 'MMM d')
 }
+
+/** @param {number} minutes @returns {string} e.g. '3h 20m', '45m', '2h', '0m' */
+export function formatMinutesShort(minutes) {
+  const total = Math.max(0, Math.round(minutes || 0))
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  if (h === 0) return `${m}m`
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}m`
+}

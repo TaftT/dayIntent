@@ -10,6 +10,7 @@ import { AuthModal } from '../auth/AuthModal.jsx'
 import { UnlockPrompt } from '../auth/UnlockPrompt.jsx'
 import { ReminderScheduler } from '../notifications/ReminderScheduler.jsx'
 import { ToastContainer } from '../notifications/ToastContainer.jsx'
+import { BottomNav } from './BottomNav.jsx'
 import { seedIfEmpty } from '../../data/devSeed.js'
 
 export function AppShell({ children }) {
@@ -45,7 +46,8 @@ export function AppShell({ children }) {
 
   return (
     <div className="app-shell">
-      {children}
+      <div className="app-main">{children}</div>
+      <BottomNav />
       {activeModal?.type === 'itemDetail' && isOpeningLockedItem && <UnlockPrompt />}
       {activeModal?.type === 'itemDetail' && !isOpeningLockedItem && (
         <ItemDetailModal key={activeModal.props.itemId ?? 'new'} {...activeModal.props} />

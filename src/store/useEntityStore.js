@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import * as repo from '../data/index.js'
 import { runRollover } from '../data/rollover.js'
 import { regenerateFutureInstances } from '../data/recurrence.js'
-import { todayStr, timeStrToMinutes } from '../utils/dateUtils.js'
+import { todayStr, addDaysStr, timeStrToMinutes } from '../utils/dateUtils.js'
 
 const SLEEP_CATEGORY_NAME = 'Sleep'
 const SLEEP_CATEGORY_COLOR = '#8a5fd6'
@@ -27,12 +27,18 @@ export const useEntityStore = create((set, get) => ({
   instancesByDate: {}, // date -> ScheduledInstance[]
   allInstances: [], // every instance, regardless of date — backs "has a future/past instance" checks
   journalsByDate: {}, // date -> DayJournal|null
+  allJournals: [], // every journal entry — backs the Stats page's screen-time aggregates
   initialized: false,
 
   init: async () => {
     if (get().initialized) return
     await runRollover(todayStr())
-    await Promise.all([get().refreshCategories(), get().refreshItems(), get().refreshAllInstances()])
+    await Promise.all([
+      get().refreshCategories(),
+      get().refreshItems(),
+      get().refreshAllInstances(),
+      get().refreshAllJournals(),
+    ])
     set({ initialized: true })
   },
 
@@ -51,6 +57,11 @@ export const useEntityStore = create((set, get) => ({
     set({ allInstances })
   },
 
+  refreshAllJournals: async () => {
+    const allJournals = await repo.getAllJournals()
+    set({ allJournals })
+  },
+
   loadInstancesForDate: async (date) => {
     await runRollover(todayStr())
     const instances = await repo.getInstancesForDate(date)
@@ -61,7 +72,12 @@ export const useEntityStore = create((set, get) => ({
 
   loadJournalForDate: async (date) => {
     const journal = await repo.getJournalForDate(date)
-    set((s) => ({ journalsByDate: { ...s.journalsByDate, [date]: journal } }))
+    set((s) => ({
+      journalsByDate: { ...s.journalsByDate, [date]: journal },
+      allJournals: journal
+        ? [...s.allJournals.filter((j) => j.date !== date), journal]
+        : s.allJournals,
+    }))
     return journal
   },
 
@@ -137,20 +153,32 @@ export const useEntityStore = create((set, get) => ({
     await get().refreshAllInstances()
   },
 
-  // "Delete series" for a recurring item — stops the series going forward
-  // without touching history. Removes today's and every future instance and
-  // clears the recurrence rule (so nothing more gets generated), but leaves
-  // past instances and the item record itself alone, since past instances
-  // still need the item to resolve their title/category when rendered.
-  deleteFutureSeries: async (itemId) => {
-    const today = todayStr()
+  // "Delete series" for a recurring item — stops the series from a given
+  // point forward without touching history. `fromDate` is the occurrence the
+  // user deleted from (defaults to today): that occurrence and every later
+  // one are removed, every earlier one is left alone. If occurrences remain
+  // before that point the recurrence rule is capped with an endDate so the
+  // series legitimately ends there; if nothing remains (the cutoff is at or
+  // before the series' own start) the rule is cleared entirely. The item
+  // record itself always stays — past instances still need it to resolve
+  // their title/category when rendered.
+  deleteFutureSeries: async (itemId, fromDate) => {
+    const cutoff = fromDate ?? todayStr()
+    const item = await repo.getItem(itemId)
     const instances = await repo.getInstancesForItem(itemId)
     for (const inst of instances) {
-      if (inst.date >= today) {
+      if (inst.date >= cutoff) {
         await repo.deleteInstance(inst.id)
       }
     }
-    await repo.saveItem({ id: itemId, recurrence: null, isHabit: false })
+    const rule = item?.recurrence
+    if (rule && rule.startDate < cutoff) {
+      const newEnd = addDaysStr(cutoff, -1)
+      const endDate = rule.endDate && rule.endDate < newEnd ? rule.endDate : newEnd
+      await repo.saveItem({ id: itemId, recurrence: { ...rule, endDate } })
+    } else {
+      await repo.saveItem({ id: itemId, recurrence: null, isHabit: false })
+    }
     await get().refreshItems()
     await get().reloadLoadedDates()
     await get().refreshAllInstances()
@@ -457,7 +485,10 @@ export const useEntityStore = create((set, get) => ({
 
   saveJournalForDate: async (date, patch) => {
     const journal = await repo.saveJournal({ date, ...patch })
-    set((s) => ({ journalsByDate: { ...s.journalsByDate, [date]: journal } }))
+    set((s) => ({
+      journalsByDate: { ...s.journalsByDate, [date]: journal },
+      allJournals: [...s.allJournals.filter((j) => j.date !== date), journal],
+    }))
     return journal
   },
 

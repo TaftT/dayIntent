@@ -306,7 +306,15 @@ export async function getAllJournals() {
 export async function saveJournal(journal) {
   const db = await getDb()
   const existing = journal.date ? await db.get('journals', journal.date) : null
-  const merged = { content: '', mood: null, ...existing, ...journal, updatedAt: nowIso() }
+  const merged = {
+    content: '',
+    mood: null,
+    spouseMood: null,
+    screenTimeMinutes: null,
+    ...existing,
+    ...journal,
+    updatedAt: nowIso(),
+  }
   await db.put('journals', merged)
   return merged
 }

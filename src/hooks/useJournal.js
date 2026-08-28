@@ -14,5 +14,7 @@ export function useJournal(date) {
     journal: journal ?? null,
     save: (content) => saveJournalForDate(date, { content }),
     saveMood: (mood) => saveJournalForDate(date, { mood }),
+    saveSpouseMood: (spouseMood) => saveJournalForDate(date, { spouseMood }),
+    saveScreenTime: (screenTimeMinutes) => saveJournalForDate(date, { screenTimeMinutes }),
   }
 }

@@ -162,7 +162,9 @@ export function ItemDetailModal({ itemId, instanceId, date, time }) {
   }
 
   const handleDeleteSeries = async () => {
-    await deleteFutureSeries(itemId)
+    // Anchor on the occurrence this modal was opened from — "delete series"
+    // removes this one and every later occurrence, keeping earlier history.
+    await deleteFutureSeries(itemId, instance?.date ?? date ?? todayStr())
     closeModal()
   }
 
@@ -178,7 +180,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time }) {
           <Button variant="danger" onClick={handleDeleteThisInstance}>
             Delete this event
           </Button>
-          <Button variant="danger" onClick={handleDeleteSeries} title="Keeps past occurrences, removes today's and every future one">
+          <Button variant="danger" onClick={handleDeleteSeries} title="Removes this occurrence and every later one — earlier occurrences are kept">
             Delete series
           </Button>
         </>
