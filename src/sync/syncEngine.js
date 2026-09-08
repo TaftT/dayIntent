@@ -32,8 +32,17 @@ import { generateSalt, generateDataKey, wrapKey, unwrapKey, encryptJson, decrypt
 import * as localRepo from '../data/indexedDbRepository.js'
 import { useEntityStore } from '../store/useEntityStore.js'
 
-let state = null // { uid, masterKey } while signed in and sync is active
+// { uid, masterKey, pullOnly } while signed in and sync is active. pullOnly is
+// set when this device's local data was last synced under a different account
+// (see OwnerMismatchError): the cloud is still pulled down and merged onto the
+// screen live, but nothing local is ever pushed up until the user explicitly
+// adopts this device via forceSyncThisDevice.
+let state = null
 let detachFns = []
+
+function canPush() {
+  return state !== null && !state.pullOnly && firebaseEnabled
+}
 
 const itemsPath = (uid) => `users/${uid}/items`
 const instancesPath = (uid) => `users/${uid}/instances`
@@ -93,14 +102,14 @@ function resolveUpdatedAt(record) {
 }
 
 export async function pushItem(item) {
-  if (!state || !firebaseEnabled) return
+  if (!canPush()) return
   if (!item.syncEnabled) return removeItem(item.id)
   const envelope = await buildEnvelope(item, state.masterKey)
   await set(ref(rtdb, `${itemsPath(state.uid)}/${item.id}`), { updatedAt: resolveUpdatedAt(item), ...envelope })
 }
 
 export async function removeItem(itemId) {
-  if (!state || !firebaseEnabled) return
+  if (!canPush()) return
   await remove(ref(rtdb, `${itemsPath(state.uid)}/${itemId}`))
   const snap = await get(ref(rtdb, instancesPath(state.uid)))
   if (snap.exists()) {
@@ -113,7 +122,7 @@ export async function removeItem(itemId) {
 }
 
 export async function pushInstance(instance, parentSyncEnabled) {
-  if (!state || !firebaseEnabled) return
+  if (!canPush()) return
   if (!parentSyncEnabled) return removeInstance(instance.id)
   const envelope = await buildEnvelope(instance, state.masterKey)
   await set(ref(rtdb, `${instancesPath(state.uid)}/${instance.id}`), {
@@ -124,7 +133,7 @@ export async function pushInstance(instance, parentSyncEnabled) {
 }
 
 export async function removeInstance(instanceId) {
-  if (!state || !firebaseEnabled) return
+  if (!canPush()) return
   await remove(ref(rtdb, `${instancesPath(state.uid)}/${instanceId}`))
 }
 
@@ -135,7 +144,7 @@ export async function removeInstance(instanceId) {
 // pushing it back up. See the file-level comment for why this needs to be a
 // separate path from removeItem/removeInstance.
 export async function deleteItemRemote(itemId) {
-  if (!state || !firebaseEnabled) return
+  if (!canPush()) return
   const deletedAt = new Date().toISOString()
   const updates = {
     [`${itemsPath(state.uid)}/${itemId}`]: null,
@@ -154,7 +163,7 @@ export async function deleteItemRemote(itemId) {
 }
 
 export async function deleteInstanceRemote(instanceId) {
-  if (!state || !firebaseEnabled) return
+  if (!canPush()) return
   await update(ref(rtdb), {
     [`${instancesPath(state.uid)}/${instanceId}`]: null,
     [`${deletedInstancesPath(state.uid)}/${instanceId}`]: new Date().toISOString(),
@@ -168,20 +177,20 @@ export async function pushInstancesBulk(instances, parentSyncEnabled) {
 }
 
 export async function pushCategory(category) {
-  if (!state || !firebaseEnabled) return
+  if (!canPush()) return
   const envelope = await buildEnvelope(category, state.masterKey)
   await set(ref(rtdb, `${categoriesPath(state.uid)}/${category.id}`), { updatedAt: resolveUpdatedAt(category), ...envelope })
 }
 
 export async function removeCategory(categoryId) {
-  if (!state || !firebaseEnabled) return
+  if (!canPush()) return
   await remove(ref(rtdb, `${categoriesPath(state.uid)}/${categoryId}`))
 }
 
 // Journals are keyed by date rather than a generated id, and there's no
 // "delete a journal entry" concept in the app, so there's no removeJournal.
 export async function pushJournal(journal) {
-  if (!state || !firebaseEnabled) return
+  if (!canPush()) return
   const envelope = await buildEnvelope(journal, state.masterKey)
   await set(ref(rtdb, `${journalsPath(state.uid)}/${journal.date}`), { updatedAt: resolveUpdatedAt(journal), ...envelope })
 }
@@ -293,7 +302,11 @@ async function buildEnvelopeSafely(record, masterKey, path, buildPayload, update
   }
 }
 
-async function reconcileAll(uid, masterKey) {
+// pullOnly skips every local -> cloud write (used when this device's local
+// data belongs to another account — see start / OwnerMismatchError): the
+// cloud is still fully pulled down and merged, and locally-tombstoned ids are
+// still deleted locally, but nothing local is pushed up.
+async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
   const stats = { attempts: 0, successes: 0 }
   const [itemsSnap, instancesSnap, categoriesSnap, journalsSnap, deletedItemsSnap, deletedInstancesSnap] =
     await Promise.all([
@@ -332,7 +345,7 @@ async function reconcileAll(uid, masterKey) {
   await Promise.all(
     localItems.map(async (item) => {
       if (deletedItemIds.has(item.id)) return localRepo.deleteItem(item.id)
-      if (!item.syncEnabled) return
+      if (pullOnly || !item.syncEnabled) return
       const record = remoteItems[item.id]
       if (!record || item.updatedAt > record.updatedAt) {
         await buildEnvelopeSafely(item, masterKey, `${itemsPath(uid)}/${item.id}`, (envelope) => ({
@@ -368,7 +381,7 @@ async function reconcileAll(uid, masterKey) {
     localInstances.map(async (instance) => {
       if (deletedInstanceIds.has(instance.id)) return localRepo.deleteInstance(instance.id)
       const parent = itemsById.get(instance.itemId)
-      if (!parent?.syncEnabled) return
+      if (pullOnly || !parent?.syncEnabled) return
       const record = remoteInstances[instance.id]
       if (!record || instance.updatedAt > record.updatedAt) {
         await buildEnvelopeSafely(instance, masterKey, `${instancesPath(uid)}/${instance.id}`, (envelope) => ({
@@ -400,6 +413,7 @@ async function reconcileAll(uid, masterKey) {
   const categoryUpdates = {}
   await Promise.all(
     localCategories.map(async (category) => {
+      if (pullOnly) return
       const record = remoteCategories[category.id]
       if (!record || category.updatedAt > record.updatedAt) {
         await buildEnvelopeSafely(category, masterKey, `${categoriesPath(uid)}/${category.id}`, (envelope) => ({
@@ -430,6 +444,7 @@ async function reconcileAll(uid, masterKey) {
   const journalUpdates = {}
   await Promise.all(
     localJournals.map(async (journal) => {
+      if (pullOnly) return
       const record = remoteJournals[journal.date]
       if (!record || journal.updatedAt > record.updatedAt) {
         await buildEnvelopeSafely(journal, masterKey, `${journalsPath(uid)}/${journal.date}`, (envelope) => ({
@@ -510,17 +525,25 @@ export class OwnerMismatchError extends Error {
   }
 }
 
+// On an owner mismatch (this browser's local data was last synced under a
+// different account) sync still starts, but in pullOnly mode: the signed-in
+// account's cloud data is pulled down and merged onto the screen and stays
+// live via the listeners, while nothing local is ever pushed up and the
+// local-owner marker is left untouched. OwnerMismatchError is still thrown
+// afterwards so the store can surface "adopt this device?" (forceSyncThisDevice),
+// but by then the user is already looking at their real cloud data instead of
+// a warning banner. `force: true` (the explicit adopt) does the normal
+// two-way reconcile and claims the marker.
 export async function start(uid, masterKey, { force = false } = {}) {
   if (!firebaseEnabled) return
   const localOwner = getLocalDataOwnerUid()
-  if (!force && localOwner && localOwner !== uid) {
-    throw new OwnerMismatchError()
-  }
+  const pullOnly = !force && Boolean(localOwner) && localOwner !== uid
   stop()
-  state = { uid, masterKey }
-  await reconcileAll(uid, masterKey)
-  setLocalDataOwnerUid(uid)
+  state = { uid, masterKey, pullOnly }
+  await reconcileAll(uid, masterKey, { pullOnly })
+  if (!pullOnly) setLocalDataOwnerUid(uid)
   attachListeners(uid)
+  if (pullOnly) throw new OwnerMismatchError()
 }
 
 export function stop() {
@@ -537,7 +560,7 @@ export function stop() {
 // pass start() does on its way up.
 export async function resync() {
   if (!state || !firebaseEnabled) return
-  await reconcileAll(state.uid, state.masterKey)
+  await reconcileAll(state.uid, state.masterKey, { pullOnly: state.pullOnly })
 }
 
 export function isSyncing() {

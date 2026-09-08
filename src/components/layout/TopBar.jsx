@@ -14,7 +14,6 @@ export function TopBar({ date }) {
   const needsUnlock = useAuthStore((s) => s.needsUnlock)
   const syncing = useAuthStore((s) => s.syncing)
   const ownerMismatch = useAuthStore((s) => s.ownerMismatch)
-  const forceSyncThisDevice = useAuthStore((s) => s.forceSyncThisDevice)
   const resync = useAuthStore((s) => s.resync)
   const signOut = useAuthStore((s) => s.signOut)
   // Loading the journal here (not just when the panel is open) lets the
@@ -62,15 +61,14 @@ export function TopBar({ date }) {
               </button>
             )}
             {user && !needsUnlock && ownerMismatch && (
-              <span className="account-mismatch" title="This device's local data was last synced under a different account">
-                <span aria-hidden="true">⚠️</span> Different account's data on this device
-                <button className="btn btn-subtle account-mismatch-btn" onClick={forceSyncThisDevice}>
-                  Sync anyway
-                </button>
-                <button className="icon-button" onClick={signOut} aria-label="Sign out">
-                  Sign out
-                </button>
-              </span>
+              <button
+                className="icon-button account-locked"
+                onClick={() => openModal('syncMismatch')}
+                aria-label="This device also has local data that isn't synced to this account"
+                title="Showing this account's cloud data. This device also has local data that isn't synced here."
+              >
+                ⚠️ Cloud only
+              </button>
             )}
             {user && !needsUnlock && !ownerMismatch && (
               <>

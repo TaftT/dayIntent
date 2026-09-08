@@ -3,6 +3,8 @@ import * as fbAuth from '../firebase/auth.js'
 import { deriveMasterKey } from '../firebase/crypto.js'
 import * as syncEngine from '../sync/syncEngine.js'
 import { firebaseEnabled } from '../firebase/config.js'
+import * as repo from '../data/index.js'
+import { useEntityStore } from './useEntityStore.js'
 
 // Auth is entirely optional — the app must work fully offline with no one
 // signed in. masterKey lives only in memory (never localStorage/IndexedDB):
@@ -18,9 +20,10 @@ export const useAuthStore = create((set, get) => ({
   needsUnlock: false,
   syncing: false, // true while the initial reconcile (push/pull everything) is in flight
   // Set when this browser's local data was last synced under a different
-  // account — see syncEngine.OwnerMismatchError. Sync is deliberately left
-  // off (not started) until the user picks a resolution, so nothing gets
-  // pushed/pulled while it's unclear whose data this actually is.
+  // account — see syncEngine.OwnerMismatchError. Sync runs in pull-only mode
+  // in this state: the signed-in account's cloud data is pulled down and kept
+  // live on screen, but nothing local is pushed up until the user either
+  // adopts this device (forceSyncThisDevice) or signs out.
   ownerMismatch: false,
   pendingMasterKey: null, // held here only while ownerMismatch is true, for forceSyncThisDevice
 
@@ -37,18 +40,38 @@ export const useAuthStore = create((set, get) => ({
       if (user) {
         set({ user: { uid: user.uid, email: user.email }, ready: true, needsUnlock: !get().masterKey })
       } else {
+        // Distinguish a real sign-out (was signed in, now not) from just
+        // starting the app while signed out — only the former clears local
+        // items. Someone who never signs in must keep everything they've made.
+        const wasSignedIn = get().user !== null
         syncEngine.stop()
         set({ user: null, masterKey: null, needsUnlock: false, ready: true, ownerMismatch: false, pendingMasterKey: null })
+        if (wasSignedIn) get()._clearItemsOnSignOut()
       }
     })
+  },
+
+  // Wipes every item and instance from this device's local store on sign-out,
+  // synced or not, so the account leaves no visible footprint behind. Synced
+  // items are still in the encrypted cloud and return on the next sign-in;
+  // local-only items are gone. Categories and journals are left alone. Only
+  // ever called on an actual sign-out (see the wasSignedIn guard below), never
+  // on app start while signed out.
+  _clearItemsOnSignOut: async () => {
+    await repo.clearItemsAndInstances()
+    const entities = useEntityStore.getState()
+    await entities.refreshItems()
+    await entities.refreshAllInstances()
+    await entities.reloadLoadedDates()
   },
 
   // Shared by signUp/signIn/unlock: starts the sync engine and commits
   // masterKey/needsUnlock only once it actually succeeds. On an owner
   // mismatch, masterKey is still committed (the password itself was valid —
   // Firebase already checked it for signUp/signIn, and a decrypt-based
-  // check would need the very sync we're refusing to run) but sync itself
-  // is left off, surfaced via ownerMismatch for the UI to resolve.
+  // check would need the very sync we're refusing to run); syncEngine.start
+  // has by then already pulled the cloud data down in pull-only mode, and
+  // ownerMismatch is surfaced so the UI can offer to adopt this device.
   _completeSignIn: async (uid, email, masterKey) => {
     set({ user: { uid, email }, syncing: true, ownerMismatch: false, pendingMasterKey: null })
     try {
@@ -99,8 +122,10 @@ export const useAuthStore = create((set, get) => ({
     await get()._completeSignIn(user.uid, user.email, masterKey)
   },
 
-  // Explicit, informed override after an ownerMismatch warning: proceeds to
-  // sync this browser's local data under the current account anyway.
+  // Explicit, informed override after an ownerMismatch: adopt this device for
+  // the current account — switch from pull-only to a full two-way reconcile
+  // (this browser's local data gets pushed up) and claim the local-owner
+  // marker so the mismatch doesn't recur.
   forceSyncThisDevice: async () => {
     const { user, pendingMasterKey } = get()
     if (!user || !pendingMasterKey) return
@@ -131,6 +156,10 @@ export const useAuthStore = create((set, get) => ({
     syncEngine.stop()
     await fbAuth.signOutUser()
     set({ user: null, masterKey: null, needsUnlock: false, ownerMismatch: false, pendingMasterKey: null })
+    // The onAuthStateChanged listener above sees user go null too, but by now
+    // get().user is already cleared so its wasSignedIn guard is false — do the
+    // clear here where we know a sign-out actually happened.
+    await get()._clearItemsOnSignOut()
   },
 
   resetPassword: (email) => fbAuth.resetPassword(email),

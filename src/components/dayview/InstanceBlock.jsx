@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { useItem } from '../../hooks/useItem.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
@@ -7,7 +8,7 @@ import { useAuthStore } from '../../store/useAuthStore.js'
 import { getDisplayStatus } from '../../data/rollover.js'
 import { formatTimeLabel, timeStrToMinutes } from '../../utils/dateUtils.js'
 import { minutesToPx, MIN_BLOCK_HEIGHT_PX, DAY_HEIGHT, OVERLAP_STAGGER_PX } from './gridConstants.js'
-import { contrastTextColor } from '../../utils/colorUtils.js'
+import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 
 const STATUS_LABEL = {
   completed: '✓',
@@ -27,6 +28,12 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
   const category = useCategoryById(item?.categoryId)
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
   const openModal = useAppStore((s) => s.openModal)
+  const isSelected = useAppStore((s) => s.selectedInstanceIds.includes(instance.id))
+  const toggleInstanceSelection = useAppStore((s) => s.toggleInstanceSelection)
+  // Non-zero only for selected blocks while another selected block is being
+  // dragged — lets this one follow along live. Unselected blocks always read
+  // 0, so they don't re-render during the drag.
+  const groupFollowY = useAppStore((s) => (isSelected ? s.groupDragDeltaY : 0))
   const signedIn = useAuthStore((s) => Boolean(s.user))
   const needsUnlock = useAuthStore((s) => s.needsUnlock)
   const isLocked = signedIn && needsUnlock && Boolean(item?.syncEnabled)
@@ -36,6 +43,25 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
     data: { instance },
     disabled: isLocked,
   })
+
+  // A single click opens the item; a double-click toggles it in/out of the
+  // day-view multi-select. Delay the open just long enough that a
+  // double-click can cancel it before it fires.
+  const clickTimerRef = useRef(null)
+  useEffect(() => () => clearTimeout(clickTimerRef.current), [])
+  const handleClick = () => {
+    if (clickTimerRef.current) return
+    clickTimerRef.current = setTimeout(() => {
+      clickTimerRef.current = null
+      openDetail()
+    }, 220)
+  }
+  const handleDoubleClick = (e) => {
+    e.stopPropagation()
+    clearTimeout(clickTimerRef.current)
+    clickTimerRef.current = null
+    toggleInstanceSelection(instance.id)
+  }
 
   if (!item) return null
 
@@ -61,30 +87,39 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
   // that's a deliberate state, not missing data, so no fallback to a block size.
   const durationMinutes = instance.durationMinutes ?? item.durationMinutes ?? null
   const isReminder = durationMinutes == null
-  const color = category?.color ?? '#7a8896'
+  const color = category?.color ?? UNCATEGORIZED_COLOR
   const openDetail = () =>
     openModal('itemDetail', { itemId: item.id, instanceId: instance.id, date, time: instance.time })
   const toggleComplete = (e) => {
     e.stopPropagation()
     markInstanceComplete(instance.id)
   }
-  const dragTransform = transform ? `translate3d(0, ${transform.y}px, 0)` : undefined
+  // The actively-dragged block uses dnd-kit's own transform; a selected block
+  // that isn't the one under the pointer follows the published group offset.
+  const followY = !isDragging && isSelected ? groupFollowY : 0
+  const dragTransform = transform
+    ? `translate3d(0, ${transform.y}px, 0)`
+    : followY
+      ? `translate3d(0, ${followY}px, 0)`
+      : undefined
+  const isMoving = isDragging || followY !== 0
 
   if (isReminder) {
     const linePx = minutesToPx(timeStrToMinutes(instance.time))
     return (
       <div
         ref={setNodeRef}
-        className={`instance-line status-${status}`}
+        className={`instance-line status-${status}${isSelected ? ' instance-selected' : ''}`}
         style={{
           top: linePx - REMINDER_LABEL_HEIGHT,
           height: REMINDER_LABEL_HEIGHT,
           transform: dragTransform,
-          zIndex: isDragging ? 20 : 1,
+          zIndex: isMoving ? 20 : 1,
         }}
         {...listeners}
         {...attributes}
-        onClick={openDetail}
+        onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
       >
         <div className="instance-line-label">
           <button
@@ -128,7 +163,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
     borderColor: color,
     color: isSleep ? 'var(--color-text)' : status === 'ghost' ? 'var(--color-text-muted)' : textColor,
     transform: dragTransform,
-    zIndex: isDragging ? 20 : 1 + cappedStagger,
+    zIndex: isMoving ? 20 : 1 + cappedStagger,
     opacity: status === 'worked_on' || status === 'in_progress' ? 0.85 : 1,
     ...staggerStyle,
   }
@@ -136,12 +171,14 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
   return (
     <div
       ref={setNodeRef}
-      className={`instance-block status-${status}${cappedStagger > 0 ? ' instance-block-staggered' : ''}`}
+      className={`instance-block status-${status}${cappedStagger > 0 ? ' instance-block-staggered' : ''}${isSelected ? ' instance-selected' : ''}`}
       style={style}
       {...listeners}
       {...attributes}
-      onClick={openDetail}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
     >
+      {isSelected && <span className="instance-select-badge" aria-hidden="true">✓</span>}
       <button
         className="instance-complete-toggle"
         onClick={toggleComplete}

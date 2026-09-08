@@ -1,6 +1,7 @@
 import { addDaysStr } from './dateUtils.js'
+import { UNCATEGORIZED_COLOR } from './colorUtils.js'
 
-const UNCATEGORIZED = { categoryId: null, name: 'Uncategorized', color: 'var(--color-ghost)' }
+const UNCATEGORIZED = { categoryId: null, name: 'Uncategorized', color: UNCATEGORIZED_COLOR }
 
 /**
  * Time spent per category over a date range, counted from finalized
@@ -92,4 +93,61 @@ export function computeScreenTimeStats(journals, fromDate, toDate) {
   const maxMinutes = logged.reduce((max, d) => Math.max(max, d.minutes), 0)
 
   return { days, loggedDays, totalMinutes, avgMinutes, maxMinutes }
+}
+
+const SLEEP_CATEGORY_NAME = 'Sleep'
+
+/**
+ * "Down time" over a range: waking minutes that weren't covered by a
+ * completed/worked-on task.
+ *   waking   = 24h/day  −  scheduled Sleep time
+ *   downtime = waking    −  completed/worked task time (Sleep excluded)
+ * Also returns the range's total logged screen time for display alongside.
+ *
+ * @param {import('../data/types.js').ScheduledInstance[]} instances
+ * @param {import('../data/types.js').Item[]} items
+ * @param {import('../data/types.js').Category[]} categories
+ * @param {import('../data/types.js').DayJournal[]} journals
+ * @param {string} fromDate 'YYYY-MM-DD' inclusive
+ * @param {string} toDate 'YYYY-MM-DD' inclusive
+ */
+export function computeUnscheduledTime(instances, items, categories, journals, fromDate, toDate) {
+  const [from, to] = fromDate <= toDate ? [fromDate, toDate] : [toDate, fromDate]
+
+  let dayCount = 0
+  for (let d = from; d <= to; d = addDaysStr(d, 1)) {
+    dayCount++
+    if (dayCount > 5000) break
+  }
+  const totalMinutes = dayCount * 1440
+
+  const itemsById = new Map(items.map((i) => [i.id, i]))
+  const sleepCategoryIds = new Set(
+    categories.filter((c) => c.name === SLEEP_CATEGORY_NAME).map((c) => c.id)
+  )
+  const isSleepInstance = (inst) => {
+    const item = itemsById.get(inst.itemId)
+    return Boolean(item?.categoryId && sleepCategoryIds.has(item.categoryId))
+  }
+
+  let sleepMinutes = 0
+  for (const inst of instances) {
+    if (inst.isAllDay || inst.durationMinutes == null) continue
+    if (inst.date < from || inst.date > to) continue
+    if (isSleepInstance(inst)) sleepMinutes += inst.durationMinutes
+  }
+  const wakingMinutes = Math.max(0, totalMinutes - sleepMinutes)
+
+  const { rows } = computeCategoryTime(instances, items, categories, from, to)
+  const completedTaskMinutes = rows
+    .filter((r) => !r.categoryId || !sleepCategoryIds.has(r.categoryId))
+    .reduce((sum, r) => sum + r.minutes, 0)
+
+  const downtimeMinutes = Math.max(0, wakingMinutes - completedTaskMinutes)
+
+  const screenTimeMinutes = journals
+    .filter((j) => j.screenTimeMinutes != null && j.date >= from && j.date <= to)
+    .reduce((sum, j) => sum + j.screenTimeMinutes, 0)
+
+  return { downtimeMinutes, wakingMinutes, sleepMinutes, completedTaskMinutes, screenTimeMinutes }
 }

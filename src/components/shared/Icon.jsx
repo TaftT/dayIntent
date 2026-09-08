@@ -47,6 +47,7 @@ const PATHS = {
       <circle cx="7.5" cy="7.5" r="1.5" />
     </>
   ),
+  plus: <path d="M12 5v14M5 12h14" />,
 }
 
 export function Icon({ name, size = 20, className, ...props }) {

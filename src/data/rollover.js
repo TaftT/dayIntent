@@ -46,7 +46,15 @@ export async function runRollover(today) {
       })
 
       if (status !== 'completed' && !item.recurrence && !item.isUnscheduled) {
-        await repo.saveItem({ ...item, isUnscheduled: true, percentComplete: currentPercent })
+        // Land it at the top of the backlog (negative order sorts ahead of
+        // every positive one) so a task that fell off the calendar is the
+        // first thing seen, not buried at the bottom.
+        await repo.saveItem({
+          ...item,
+          isUnscheduled: true,
+          percentComplete: currentPercent,
+          order: -Date.now(),
+        })
       }
     }
   }

@@ -112,6 +112,26 @@ describe('deleteItem', () => {
   })
 })
 
+describe('clearItemsAndInstances', () => {
+  it('wipes every item and instance regardless of sync flag, leaving categories/journals', async () => {
+    const cat = await repo.saveCategory({ name: 'Work', color: '#fff' })
+    const synced = await repo.saveItem({ title: 'Synced', syncEnabled: true })
+    const local = await repo.saveItem({ title: 'Local only', syncEnabled: false })
+    await repo.saveInstance({ itemId: synced.id, date: '2026-08-01', finalized: true, status: 'completed' })
+    await repo.saveInstance({ itemId: local.id, date: '2026-09-20' })
+    await repo.saveJournal({ date: '2026-09-20', content: 'kept' })
+
+    await repo.clearItemsAndInstances()
+
+    expect(await repo.getAllItems()).toHaveLength(0)
+    expect(await repo.getAllInstances()).toHaveLength(0)
+    expect(await repo.getItem(synced.id)).toBeNull()
+    expect(await repo.getItem(local.id)).toBeNull()
+    expect((await repo.getAllCategories()).map((c) => c.id)).toEqual([cat.id])
+    expect((await repo.getJournalForDate('2026-09-20'))?.content).toBe('kept')
+  })
+})
+
 describe('instances', () => {
   it('getInstancesForDate returns only that date', async () => {
     const item = await repo.saveItem({ title: 'Task' })

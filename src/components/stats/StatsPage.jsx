@@ -4,6 +4,7 @@ import { useEntityStore } from '../../store/useEntityStore.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { computeHabitStats } from '../../utils/habitStats.js'
 import { formatShortDate } from '../../utils/dateUtils.js'
+import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 import { StatsRangeControl, rangeForPresetDays } from './StatsRangeControl.jsx'
 import { CategoryTimeSection } from './CategoryTimeSection.jsx'
 import { ScreenTimeSection } from './ScreenTimeSection.jsx'
@@ -38,7 +39,7 @@ function HabitCard({ item }) {
   return (
     <div className="habit-card">
       <div className="habit-card-header">
-        <span className="category-dot" style={{ background: category?.color ?? '#7a8896' }} />
+        <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
         <span className="habit-card-title">{item.title}</span>
       </div>
       <div className="habit-card-stats">

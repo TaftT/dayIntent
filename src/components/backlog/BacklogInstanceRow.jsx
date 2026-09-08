@@ -4,6 +4,7 @@ import { useAppStore } from '../../store/useAppStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { getDisplayStatus } from '../../data/rollover.js'
 import { formatShortDate, formatTimeLabel, isTodayStr } from '../../utils/dateUtils.js'
+import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 
 const STATUS_LABEL = {
   completed: '✓',
@@ -50,7 +51,7 @@ export function BacklogInstanceRow({ item, instance }) {
       >
         {STATUS_LABEL[status]}
       </button>
-      <span className="category-dot" style={{ background: category?.color ?? '#7a8896' }} />
+      <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
       <span className="backlog-item-title">{item.title}</span>
       <span className="badge" title="Recurring">⟳</span>
       <span className="backlog-instance-date">

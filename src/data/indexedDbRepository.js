@@ -134,6 +134,21 @@ export async function deleteItem(id) {
   }
 }
 
+/**
+ * Wipes every item and scheduled instance from this device's local store.
+ * Called on sign-out: cloud-synced items come back on the next sign-in (they
+ * live in the encrypted cloud store), local-only items are gone for good.
+ * Categories and journals are intentionally left in place. Guarded upstream
+ * so it only runs on an actual sign-out, never on app start while signed out.
+ */
+export async function clearItemsAndInstances() {
+  const db = await getDb()
+  const tx = db.transaction(['items', 'instances'], 'readwrite')
+  await tx.objectStore('items').clear()
+  await tx.objectStore('instances').clear()
+  await tx.done
+}
+
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------

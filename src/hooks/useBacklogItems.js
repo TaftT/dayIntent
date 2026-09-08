@@ -3,9 +3,28 @@ import { useEntityStore } from '../store/useEntityStore.js'
 import { todayStr } from '../utils/dateUtils.js'
 import { isRichTextEmpty } from '../utils/richText.js'
 
+// Plain one-off tasks sit at the top; recurring series, all-day items, and
+// finished tasks each drop into their own section below. Manual drag order
+// still applies within a section.
+export const BACKLOG_SECTIONS = ['tasks', 'recurring', 'allday', 'completed']
+export const BACKLOG_SECTION_LABEL = {
+  tasks: 'Tasks',
+  recurring: 'Recurring',
+  allday: 'All-day',
+  completed: 'Completed',
+}
+const SECTION_RANK = { tasks: 0, recurring: 1, allday: 2, completed: 3 }
+
+function sectionForRow(row) {
+  if (row.type === 'instance' || row.item.recurrence) return 'recurring'
+  if ((row.item.percentComplete ?? 0) >= 100) return 'completed'
+  if (row.item.isAllDay) return 'allday'
+  return 'tasks'
+}
+
 /**
  * @param {{status?: 'unscheduled'|'scheduled'|'past'|'all', categoryId?: string|null, isRecurring?: boolean, hasNotes?: boolean, searchText?: string}} filters
- * @returns {Array<{type: 'item', item: object} | {type: 'instance', item: object, instance: object}>}
+ * @returns {Array<{type: 'item', item: object, section: string} | {type: 'instance', item: object, instance: object, section: string}>}
  */
 export function useBacklogItems(filters = {}) {
   const refreshAllInstances = useEntityStore((s) => s.refreshAllInstances)
@@ -42,24 +61,29 @@ export function useBacklogItems(filters = {}) {
       return true
     })
 
-    matchingItems.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-
-    // A recurring item is a series, not a single task — show just its next
-    // upcoming occurrence (completable on its own), not the whole series.
-    if (status !== 'scheduled' && status !== 'all') {
-      return matchingItems.map((item) => ({ type: 'item', item }))
-    }
-
     const today = todayStr()
+    const resolveNextInstance = status === 'scheduled' || status === 'all'
 
-    return matchingItems.map((item) => {
-      if (!item.recurrence) return { type: 'item', item }
-
-      const nextInstance = s.allInstances
-        .filter((i) => i.itemId === item.id && !i.finalized && i.date >= today)
-        .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? ''))[0]
-
-      return nextInstance ? { type: 'instance', item, instance: nextInstance } : { type: 'item', item }
+    const rows = matchingItems.map((item) => {
+      // A recurring item is a series, not a single task — under the
+      // scheduled/all views show just its next upcoming occurrence
+      // (completable on its own), not the whole series.
+      if (resolveNextInstance && item.recurrence) {
+        const nextInstance = s.allInstances
+          .filter((i) => i.itemId === item.id && !i.finalized && i.date >= today)
+          .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? ''))[0]
+        if (nextInstance) return { type: 'instance', item, instance: nextInstance }
+      }
+      return { type: 'item', item }
     })
+
+    for (const row of rows) row.section = sectionForRow(row)
+
+    rows.sort((a, b) => {
+      const bySection = SECTION_RANK[a.section] - SECTION_RANK[b.section]
+      return bySection !== 0 ? bySection : (a.item.order ?? 0) - (b.item.order ?? 0)
+    })
+
+    return rows
   })
 }
