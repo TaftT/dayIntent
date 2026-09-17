@@ -3,6 +3,7 @@ import { useItem } from '../../hooks/useItem.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
+import { useAuthStore } from '../../store/useAuthStore.js'
 import { getDisplayStatus } from '../../data/rollover.js'
 import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 import { fromDateStr, addDaysStr } from '../../utils/dateUtils.js'
@@ -18,7 +19,9 @@ function AllDayChip({ instance, span }) {
   const category = useCategoryById(item?.categoryId)
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
   const openModal = useAppStore((s) => s.openModal)
+  const hideSynced = useAuthStore((s) => Boolean(s.user) && s.needsUnlock)
   if (!item) return null
+  if (hideSynced && item.syncEnabled) return null // hidden while cloud sync is locked
 
   const status = getDisplayStatus(instance)
   const color = category?.color ?? UNCATEGORIZED_COLOR

@@ -307,13 +307,13 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
           </div>
         )}
 
-        <CategoryPicker categoryId={categoryId} onChange={setCategoryId} />
-
-        <RichTextEditor value={notes} onChange={setNotes} className="notes-editor" placeholder="Notes" />
-
         {!isCreate && (
           <PercentCompleteSlider percentComplete={percentComplete} onChange={setPercentComplete} />
         )}
+
+        <CategoryPicker categoryId={categoryId} onChange={setCategoryId} />
+
+        <RichTextEditor value={notes} onChange={setNotes} className="notes-editor" placeholder="Notes" />
 
         <RecurrenceEditor recurrence={recurrence} defaultStartDate={scheduledDate} onChange={setRecurrence} />
 

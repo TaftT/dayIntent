@@ -41,24 +41,25 @@ export const useAuthStore = create((set, get) => ({
         set({ user: { uid: user.uid, email: user.email }, ready: true, needsUnlock: !get().masterKey })
       } else {
         // Distinguish a real sign-out (was signed in, now not) from just
-        // starting the app while signed out — only the former clears local
-        // items. Someone who never signs in must keep everything they've made.
+        // starting the app while signed out — only the former purges synced
+        // items. Someone who never signs in must keep everything they've made
+        // (their items default to syncEnabled: true).
         const wasSignedIn = get().user !== null
         syncEngine.stop()
         set({ user: null, masterKey: null, needsUnlock: false, ready: true, ownerMismatch: false, pendingMasterKey: null })
-        if (wasSignedIn) get()._clearItemsOnSignOut()
+        if (wasSignedIn) get()._purgeSyncedOnSignOut()
       }
     })
   },
 
-  // Wipes every item and instance from this device's local store on sign-out,
-  // synced or not, so the account leaves no visible footprint behind. Synced
-  // items are still in the encrypted cloud and return on the next sign-in;
-  // local-only items are gone. Categories and journals are left alone. Only
-  // ever called on an actual sign-out (see the wasSignedIn guard below), never
-  // on app start while signed out.
-  _clearItemsOnSignOut: async () => {
-    await repo.clearItemsAndInstances()
+  // On sign-out, removes the cloud-synced items/instances from this device so
+  // no synced data is left sitting there un-editable. Local-only items
+  // (syncEnabled: false) stay put — they're this device's own data and were
+  // never in the cloud. Synced items come back on the next sign-in. Only ever
+  // called on an actual sign-out (see the wasSignedIn guard), never on app
+  // start while signed out.
+  _purgeSyncedOnSignOut: async () => {
+    await repo.purgeSyncedItems()
     const entities = useEntityStore.getState()
     await entities.refreshItems()
     await entities.refreshAllInstances()
@@ -158,8 +159,8 @@ export const useAuthStore = create((set, get) => ({
     set({ user: null, masterKey: null, needsUnlock: false, ownerMismatch: false, pendingMasterKey: null })
     // The onAuthStateChanged listener above sees user go null too, but by now
     // get().user is already cleared so its wasSignedIn guard is false — do the
-    // clear here where we know a sign-out actually happened.
-    await get()._clearItemsOnSignOut()
+    // purge here where we know a sign-out actually happened.
+    await get()._purgeSyncedOnSignOut()
   },
 
   resetPassword: (email) => fbAuth.resetPassword(email),

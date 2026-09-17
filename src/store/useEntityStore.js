@@ -293,6 +293,12 @@ export const useEntityStore = create((set, get) => ({
   scheduleItemOnDate: async (itemId, date, opts = {}) => {
     const item = await repo.getItem(itemId)
     const isAllDay = opts.isAllDay ?? item.isAllDay
+    // Scheduling straight onto a day that's already passed means the event
+    // can't still be pending — there's no "later today" left for it to
+    // happen in. Marking it complete up front (rather than waiting for the
+    // next rollover pass) makes getDisplayStatus show it as done right away;
+    // rollover still finalizes it into locked-in history the normal way.
+    const isPastDate = date < todayStr()
 
     if (!item.recurrence) {
       const existing = await repo.getInstancesForItem(itemId)
@@ -308,7 +314,7 @@ export const useEntityStore = create((set, get) => ({
       durationMinutes: item.durationMinutes,
       isAllDay,
       notes: item.notes,
-      percentComplete: item.percentComplete,
+      percentComplete: isPastDate ? 100 : item.percentComplete,
     })
     await repo.saveItem({ id: itemId, isUnscheduled: false })
     await get().refreshItems()

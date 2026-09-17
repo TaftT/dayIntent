@@ -216,7 +216,7 @@ async function mergeRemoteItem(id, record) {
   if (local && local.updatedAt >= record.updatedAt) return
   const opened = await safeOpenEnvelope(record, state.masterKey)
   if (!opened.ok) return
-  await localRepo.saveItem(opened.value)
+  await localRepo.saveItem(opened.value, { preserveTimestamp: true })
   useEntityStore.getState().refreshItems()
 }
 
@@ -226,7 +226,7 @@ async function mergeRemoteInstance(id, record) {
   if (local && local.updatedAt >= record.updatedAt) return
   const opened = await safeOpenEnvelope(record, state.masterKey)
   if (!opened.ok) return
-  await localRepo.saveInstance(opened.value)
+  await localRepo.saveInstance(opened.value, { preserveTimestamp: true })
   await useEntityStore.getState().refreshAllInstances()
   await useEntityStore.getState().reloadLoadedDates()
 }
@@ -237,7 +237,7 @@ async function mergeRemoteCategory(id, record) {
   if (local && local.updatedAt >= record.updatedAt) return
   const opened = await safeOpenEnvelope(record, state.masterKey)
   if (!opened.ok) return
-  await localRepo.saveCategory(opened.value)
+  await localRepo.saveCategory(opened.value, { preserveTimestamp: true })
   useEntityStore.getState().refreshCategories()
 }
 
@@ -275,7 +275,7 @@ async function mergeRemoteJournal(date, record) {
   if (local && local.updatedAt >= record.updatedAt) return
   const opened = await safeOpenEnvelope(record, state.masterKey)
   if (!opened.ok) return
-  await localRepo.saveJournal(opened.value)
+  await localRepo.saveJournal(opened.value, { preserveTimestamp: true })
   // Only refresh a date that's actually cached — an unviewed date will pick
   // up the merged local data naturally next time it's loaded.
   if (date in useEntityStore.getState().journalsByDate) {
@@ -317,6 +317,20 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
       get(ref(rtdb, deletedItemsPath(uid))),
       get(ref(rtdb, deletedInstancesPath(uid))),
     ])
+  // Handed back to start() so attachListeners can ignore the replay burst
+  // Firebase fires for every existing child the moment a listener attaches —
+  // every id already accounted for here was just fully reconciled above, so
+  // reprocessing it again per-record (a decrypt + IndexedDB read, or for a
+  // tombstone a full store reload) the instant listeners go live is pure
+  // redundant work. Only ids that show up *after* this snapshot are new.
+  const knownIds = {
+    itemIds: new Set(itemsSnap.exists() ? Object.keys(itemsSnap.val()) : []),
+    instanceIds: new Set(instancesSnap.exists() ? Object.keys(instancesSnap.val()) : []),
+    categoryIds: new Set(categoriesSnap.exists() ? Object.keys(categoriesSnap.val()) : []),
+    journalDates: new Set(journalsSnap.exists() ? Object.keys(journalsSnap.val()) : []),
+    deletedItemIds: new Set(deletedItemsSnap.exists() ? Object.keys(deletedItemsSnap.val()) : []),
+    deletedInstanceIds: new Set(deletedInstancesSnap.exists() ? Object.keys(deletedInstancesSnap.val()) : []),
+  }
   // Ids tombstoned by any device's real delete (see deleteItemRemote /
   // deleteInstanceRemote) — a local copy of one of these gets deleted here
   // rather than pushed back up, which is what used to resurrect a
@@ -337,7 +351,7 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
       })
       .map(async ([, record]) => {
         const opened = await tryOpenEnvelope(record, masterKey, stats)
-        if (opened.ok) await localRepo.saveItem(opened.value)
+        if (opened.ok) await localRepo.saveItem(opened.value, { preserveTimestamp: true })
       })
   )
 
@@ -372,7 +386,7 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
       })
       .map(async ([, record]) => {
         const opened = await tryOpenEnvelope(record, masterKey, stats)
-        if (opened.ok) await localRepo.saveInstance(opened.value)
+        if (opened.ok) await localRepo.saveInstance(opened.value, { preserveTimestamp: true })
       })
   )
 
@@ -406,7 +420,7 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
       })
       .map(async ([, record]) => {
         const opened = await tryOpenEnvelope(record, masterKey, stats)
-        if (opened.ok) await localRepo.saveCategory(opened.value)
+        if (opened.ok) await localRepo.saveCategory(opened.value, { preserveTimestamp: true })
       })
   )
 
@@ -437,7 +451,7 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
       })
       .map(async ([, record]) => {
         const opened = await tryOpenEnvelope(record, masterKey, stats)
-        if (opened.ok) await localRepo.saveJournal(opened.value)
+        if (opened.ok) await localRepo.saveJournal(opened.value, { preserveTimestamp: true })
       })
   )
 
@@ -470,9 +484,16 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
   useEntityStore.getState().refreshCategories()
   const loadedJournalDates = Object.keys(useEntityStore.getState().journalsByDate)
   await Promise.all(loadedJournalDates.map((d) => useEntityStore.getState().loadJournalForDate(d)))
+
+  return knownIds
 }
 
-function attachListeners(uid) {
+// `knownIds` (see reconcileAll) lets each handler skip the initial replay
+// burst — onChildAdded fires once per already-existing child the instant a
+// listener attaches, on top of whatever reconcileAll just did for that same
+// record. Ids first seen after that point (genuinely new/changed since the
+// reconcile snapshot was taken) still go through the normal merge path.
+function attachListeners(uid, knownIds) {
   const itemsR = ref(rtdb, itemsPath(uid))
   const instancesR = ref(rtdb, instancesPath(uid))
   const categoriesR = ref(rtdb, categoriesPath(uid))
@@ -480,17 +501,17 @@ function attachListeners(uid) {
   const deletedItemsR = ref(rtdb, deletedItemsPath(uid))
   const deletedInstancesR = ref(rtdb, deletedInstancesPath(uid))
 
-  detachFns.push(onChildAdded(itemsR, (snap) => mergeRemoteItem(snap.key, snap.val())))
+  detachFns.push(onChildAdded(itemsR, (snap) => { if (!knownIds.itemIds.has(snap.key)) mergeRemoteItem(snap.key, snap.val()) }))
   detachFns.push(onChildChanged(itemsR, (snap) => mergeRemoteItem(snap.key, snap.val())))
-  detachFns.push(onChildAdded(instancesR, (snap) => mergeRemoteInstance(snap.key, snap.val())))
+  detachFns.push(onChildAdded(instancesR, (snap) => { if (!knownIds.instanceIds.has(snap.key)) mergeRemoteInstance(snap.key, snap.val()) }))
   detachFns.push(onChildChanged(instancesR, (snap) => mergeRemoteInstance(snap.key, snap.val())))
-  detachFns.push(onChildAdded(categoriesR, (snap) => mergeRemoteCategory(snap.key, snap.val())))
+  detachFns.push(onChildAdded(categoriesR, (snap) => { if (!knownIds.categoryIds.has(snap.key)) mergeRemoteCategory(snap.key, snap.val()) }))
   detachFns.push(onChildChanged(categoriesR, (snap) => mergeRemoteCategory(snap.key, snap.val())))
   detachFns.push(onChildRemoved(categoriesR, (snap) => removeRemoteCategory(snap.key)))
-  detachFns.push(onChildAdded(journalsR, (snap) => mergeRemoteJournal(snap.key, snap.val())))
+  detachFns.push(onChildAdded(journalsR, (snap) => { if (!knownIds.journalDates.has(snap.key)) mergeRemoteJournal(snap.key, snap.val()) }))
   detachFns.push(onChildChanged(journalsR, (snap) => mergeRemoteJournal(snap.key, snap.val())))
-  detachFns.push(onChildAdded(deletedItemsR, (snap) => handleRemoteItemDeleted(snap.key)))
-  detachFns.push(onChildAdded(deletedInstancesR, (snap) => handleRemoteInstanceDeleted(snap.key)))
+  detachFns.push(onChildAdded(deletedItemsR, (snap) => { if (!knownIds.deletedItemIds.has(snap.key)) handleRemoteItemDeleted(snap.key) }))
+  detachFns.push(onChildAdded(deletedInstancesR, (snap) => { if (!knownIds.deletedInstanceIds.has(snap.key)) handleRemoteInstanceDeleted(snap.key) }))
 }
 
 // IndexedDB is one shared local database per browser, not one per signed-in
@@ -540,9 +561,9 @@ export async function start(uid, masterKey, { force = false } = {}) {
   const pullOnly = !force && Boolean(localOwner) && localOwner !== uid
   stop()
   state = { uid, masterKey, pullOnly }
-  await reconcileAll(uid, masterKey, { pullOnly })
+  const knownIds = await reconcileAll(uid, masterKey, { pullOnly })
   if (!pullOnly) setLocalDataOwnerUid(uid)
-  attachListeners(uid)
+  attachListeners(uid, knownIds)
   if (pullOnly) throw new OwnerMismatchError()
 }
 

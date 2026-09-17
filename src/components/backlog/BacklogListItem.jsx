@@ -46,19 +46,9 @@ export function BacklogListItem({ item }) {
   const parent = item.parentIds.length > 0 ? items.find((i) => i.id === item.parentIds[0]) : null
   const childCount = item.childIds.length
 
-  if (isLocked) {
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className="backlog-list-item item-locked"
-        onClick={() => openModal('itemDetail', { itemId: item.id })}
-      >
-        <span aria-hidden="true">🔒</span>
-        <span className="backlog-item-title">Locked until you unlock sync</span>
-      </div>
-    )
-  }
+  // Synced items are hidden while sync is locked (see useBacklogItems); this
+  // is just a belt-and-braces guard for any other path that renders a row.
+  if (isLocked) return null
 
   return (
     <div

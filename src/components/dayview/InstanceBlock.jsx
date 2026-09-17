@@ -64,23 +64,11 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
   }
 
   if (!item) return null
+  // A synced item is hidden entirely while cloud sync is locked.
+  if (isLocked) return null
 
   const cappedStagger = Math.min(overlapIndex, MAX_OVERLAP_STAGGER)
   const staggerStyle = cappedStagger > 0 ? { left: 6 + cappedStagger * OVERLAP_STAGGER_PX } : null
-
-  if (isLocked) {
-    const linePx = minutesToPx(timeStrToMinutes(instance.time))
-    return (
-      <div
-        ref={setNodeRef}
-        className="instance-block instance-locked"
-        style={{ top: linePx, height: MIN_BLOCK_HEIGHT_PX, ...staggerStyle, zIndex: 1 + cappedStagger }}
-        onClick={() => openModal('itemDetail', { itemId: item.id, instanceId: instance.id, date, time: instance.time })}
-      >
-        <div className="instance-block-title">🔒 Locked</div>
-      </div>
-    )
-  }
 
   const status = getDisplayStatus(instance)
   // durationMinutes is null when the item is a reminder with no duration —

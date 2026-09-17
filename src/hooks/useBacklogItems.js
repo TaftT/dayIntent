@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useEntityStore } from '../store/useEntityStore.js'
+import { useAuthStore } from '../store/useAuthStore.js'
 import { todayStr } from '../utils/dateUtils.js'
 import { isRichTextEmpty } from '../utils/richText.js'
 
@@ -33,6 +34,10 @@ export function useBacklogItems(filters = {}) {
   }, [refreshAllInstances])
 
   const status = filters.status ?? 'unscheduled'
+  // While cloud sync is locked (signed in, password not re-entered) a synced
+  // item's up-to-date content can't be trusted, so it's hidden entirely —
+  // only local-only items show until sync is unlocked.
+  const hideSynced = useAuthStore((s) => Boolean(s.user) && s.needsUnlock)
 
   return useEntityStore((s) => {
     // A non-finalized instance is always today-or-future (rollover only
@@ -43,6 +48,7 @@ export function useBacklogItems(filters = {}) {
     )
 
     const matchingItems = s.items.filter((item) => {
+      if (hideSynced && item.syncEnabled) return false
       const isUpcoming = upcomingItemIds.has(item.id)
       if (status === 'unscheduled' && !item.isUnscheduled) return false
       if (status === 'scheduled' && (item.isUnscheduled || !isUpcoming)) return false

@@ -29,14 +29,8 @@ export function BacklogInstanceRow({ item, instance }) {
   const handleClick = () =>
     openModal('itemDetail', { itemId: item.id, instanceId: instance.id, date: instance.date, time: instance.time })
 
-  if (isLocked) {
-    return (
-      <div className="backlog-list-item backlog-instance-row item-locked" onClick={handleClick}>
-        <span aria-hidden="true">🔒</span>
-        <span className="backlog-item-title">Locked until you unlock sync</span>
-      </div>
-    )
-  }
+  // Synced items are hidden while sync is locked (see useBacklogItems).
+  if (isLocked) return null
 
   return (
     <div className="backlog-list-item backlog-instance-row" onClick={handleClick}>

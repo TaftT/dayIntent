@@ -1,6 +1,7 @@
 import { useItem } from '../../hooks/useItem.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { useAppStore } from '../../store/useAppStore.js'
+import { useAuthStore } from '../../store/useAuthStore.js'
 import { getDisplayStatus } from '../../data/rollover.js'
 import { minutesToPx, MIN_BLOCK_HEIGHT_PX } from './gridConstants.js'
 import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
@@ -16,8 +17,10 @@ export function OvernightContinuationBlock({ continuation }) {
   const item = useItem(continuation.itemId)
   const category = useCategoryById(item?.categoryId)
   const openModal = useAppStore((s) => s.openModal)
+  const hideSynced = useAuthStore((s) => Boolean(s.user) && s.needsUnlock)
 
   if (!item) return null
+  if (hideSynced && item.syncEnabled) return null // hidden while cloud sync is locked
 
   const status = getDisplayStatus(continuation)
   const color = category?.color ?? UNCATEGORIZED_COLOR

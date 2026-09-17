@@ -9,17 +9,8 @@ export function SearchResultItem({ item }) {
   const needsUnlock = useAuthStore((s) => s.needsUnlock)
   const isLocked = signedIn && needsUnlock && item.syncEnabled
 
-  if (isLocked) {
-    return (
-      <button
-        className="search-result-item item-locked"
-        onClick={() => openModal('itemDetail', { itemId: item.id })}
-      >
-        <span aria-hidden="true">🔒</span>
-        <span className="search-result-title">Locked until you unlock sync</span>
-      </button>
-    )
-  }
+  // Synced items are hidden while cloud sync is locked.
+  if (isLocked) return null
 
   return (
     <button className="search-result-item" onClick={() => openModal('itemDetail', { itemId: item.id })}>
