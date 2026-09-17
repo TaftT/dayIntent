@@ -15,6 +15,8 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i)
 export function DayGrid({ instances, date, continuations = [] }) {
   const gridRef = useRef(null)
   const openModal = useAppStore((s) => s.openModal)
+  const selectedInstanceIds = useAppStore((s) => s.selectedInstanceIds)
+  const clearInstanceSelection = useAppStore((s) => s.clearInstanceSelection)
   const items = useEntityStore((s) => s.items)
 
   const timedInstances = instances.filter((i) => !i.isAllDay)
@@ -35,6 +37,12 @@ export function DayGrid({ instances, date, continuations = [] }) {
 
   const handleGridClick = (e) => {
     if (e.target.closest('.instance-block')) return
+    // Tapping empty space is the "escape" from a multi-select — dismiss it
+    // rather than opening the new-item form on the same click.
+    if (selectedInstanceIds.length > 0) {
+      clearInstanceSelection()
+      return
+    }
     const rect = gridRef.current.getBoundingClientRect()
     const offsetY = e.clientY - rect.top
     const time = pxOffsetToTimeStr(offsetY)

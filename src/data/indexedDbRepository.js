@@ -60,10 +60,17 @@ export async function getBacklogItems(filter = {}) {
 
 /**
  * Upserts an item. Generates an id and timestamps if absent.
+ *
+ * `preserveTimestamp` keeps the passed-in `updatedAt` instead of stamping
+ * "now" — used only by the sync engine when writing a record pulled from the
+ * cloud, so last-write-wins comparisons stay meaningful (stamping "now" on
+ * every pull made freshly-synced records look locally edited and could clobber
+ * a real edit made moments later).
  * @param {Partial<import('./types.js').Item>} item
+ * @param {{preserveTimestamp?: boolean}} [opts]
  * @returns {Promise<import('./types.js').Item>}
  */
-export async function saveItem(item) {
+export async function saveItem(item, { preserveTimestamp = false } = {}) {
   const db = await getDb()
   const existing = item.id ? fromItemRecord(await db.get('items', item.id)) : null
   const merged = {
@@ -85,7 +92,7 @@ export async function saveItem(item) {
     createdAt: nowIso(),
     ...existing,
     ...item,
-    updatedAt: nowIso(),
+    updatedAt: preserveTimestamp && item.updatedAt ? item.updatedAt : nowIso(),
   }
   if (!merged.title || !merged.title.trim()) {
     throw new Error('Item title is required')
@@ -134,6 +141,43 @@ export async function deleteItem(id) {
   }
 }
 
+/**
+ * Removes every cloud-synced item (syncEnabled) and its instances from this
+ * device's local store, leaving local-only items untouched. Called on
+ * sign-out so synced data doesn't linger un-editable on the device — it's in
+ * the encrypted cloud and returns on the next sign-in. Parent/child links
+ * from a surviving local item to a purged one are stripped. Guarded upstream
+ * so it only runs on an actual sign-out, never on app start while signed out.
+ */
+export async function purgeSyncedItems() {
+  const db = await getDb()
+  const tx = db.transaction(['items', 'instances'], 'readwrite')
+  const itemsStore = tx.objectStore('items')
+  const instancesStore = tx.objectStore('instances')
+
+  const allItems = await itemsStore.getAll()
+  const purged = new Set()
+  for (const item of allItems) {
+    if (!item.syncEnabled) continue
+    purged.add(item.id)
+    await itemsStore.delete(item.id)
+  }
+  if (purged.size > 0) {
+    for (const inst of await instancesStore.getAll()) {
+      if (purged.has(inst.itemId)) await instancesStore.delete(inst.id)
+    }
+    for (const item of allItems) {
+      if (purged.has(item.id)) continue
+      const parentIds = (item.parentIds ?? []).filter((x) => !purged.has(x))
+      const childIds = (item.childIds ?? []).filter((x) => !purged.has(x))
+      if (parentIds.length !== (item.parentIds?.length ?? 0) || childIds.length !== (item.childIds?.length ?? 0)) {
+        await itemsStore.put({ ...item, parentIds, childIds, updatedAt: nowIso() })
+      }
+    }
+  }
+  await tx.done
+}
+
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------
@@ -149,9 +193,10 @@ export async function getAllCategories() {
 
 /**
  * @param {Partial<import('./types.js').Category>} category
+ * @param {{preserveTimestamp?: boolean}} [opts] - see saveItem
  * @returns {Promise<import('./types.js').Category>}
  */
-export async function saveCategory(category) {
+export async function saveCategory(category, { preserveTimestamp = false } = {}) {
   const db = await getDb()
   const existing = category.id ? await db.get('categories', category.id) : null
   const merged = {
@@ -161,7 +206,7 @@ export async function saveCategory(category) {
     createdAt: nowIso(),
     ...existing,
     ...category,
-    updatedAt: nowIso(),
+    updatedAt: preserveTimestamp && category.updatedAt ? category.updatedAt : nowIso(),
   }
   if (!merged.name || !merged.name.trim()) {
     throw new Error('Category name is required')
@@ -240,9 +285,10 @@ export async function getPendingInstancesThrough(throughDate) {
 
 /**
  * @param {Partial<import('./types.js').ScheduledInstance>} instance
+ * @param {{preserveTimestamp?: boolean}} [opts] - see saveItem
  * @returns {Promise<import('./types.js').ScheduledInstance>}
  */
-export async function saveInstance(instance) {
+export async function saveInstance(instance, { preserveTimestamp = false } = {}) {
   const db = await getDb()
   const existing = instance.id ? fromInstanceRecord(await db.get('instances', instance.id)) : null
   const merged = {
@@ -261,7 +307,7 @@ export async function saveInstance(instance) {
     createdAt: nowIso(),
     ...existing,
     ...instance,
-    updatedAt: nowIso(),
+    updatedAt: preserveTimestamp && instance.updatedAt ? instance.updatedAt : nowIso(),
   }
   await db.put('instances', toInstanceRecord(merged))
   return merged
@@ -301,12 +347,21 @@ export async function getAllJournals() {
 
 /**
  * @param {Partial<import('./types.js').DayJournal>} journal
+ * @param {{preserveTimestamp?: boolean}} [opts] - see saveItem
  * @returns {Promise<import('./types.js').DayJournal>}
  */
-export async function saveJournal(journal) {
+export async function saveJournal(journal, { preserveTimestamp = false } = {}) {
   const db = await getDb()
   const existing = journal.date ? await db.get('journals', journal.date) : null
-  const merged = { content: '', mood: null, ...existing, ...journal, updatedAt: nowIso() }
+  const merged = {
+    content: '',
+    mood: null,
+    spouseMood: null,
+    screenTimeMinutes: null,
+    ...existing,
+    ...journal,
+    updatedAt: preserveTimestamp && journal.updatedAt ? journal.updatedAt : nowIso(),
+  }
   await db.put('journals', merged)
   return merged
 }

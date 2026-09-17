@@ -5,3 +5,7 @@ dist-ssr
 .DS_Store
 coverage
 .firebase
+
+# git-timelapse.cjs output
+timelapse-shots
+timelapse*.mp4

@@ -112,6 +112,36 @@ describe('deleteItem', () => {
   })
 })
 
+describe('purgeSyncedItems', () => {
+  it('removes synced items + their instances, keeps local-only items, categories and journals', async () => {
+    const cat = await repo.saveCategory({ name: 'Work', color: '#fff' })
+    const synced = await repo.saveItem({ title: 'Synced', syncEnabled: true })
+    const local = await repo.saveItem({ title: 'Local only', syncEnabled: false })
+    await repo.saveInstance({ itemId: synced.id, date: '2026-08-01', finalized: true, status: 'completed' })
+    const localInst = await repo.saveInstance({ itemId: local.id, date: '2026-09-20' })
+    await repo.saveJournal({ date: '2026-09-20', content: 'kept' })
+
+    await repo.purgeSyncedItems()
+
+    expect(await repo.getItem(synced.id)).toBeNull()
+    expect(await repo.getInstancesForItem(synced.id)).toHaveLength(0)
+    expect((await repo.getAllItems()).map((i) => i.id)).toEqual([local.id])
+    expect(await repo.getInstance(localInst.id)).not.toBeNull()
+    expect((await repo.getAllCategories()).map((c) => c.id)).toEqual([cat.id])
+    expect((await repo.getJournalForDate('2026-09-20'))?.content).toBe('kept')
+  })
+
+  it('strips dangling parent/child links from a surviving local item', async () => {
+    const syncedParent = await repo.saveItem({ title: 'Synced parent', syncEnabled: true })
+    const localChild = await repo.saveItem({ title: 'Local child', syncEnabled: false, parentIds: [syncedParent.id] })
+    await repo.saveItem({ id: syncedParent.id, childIds: [localChild.id] })
+
+    await repo.purgeSyncedItems()
+
+    expect((await repo.getItem(localChild.id)).parentIds).toEqual([])
+  })
+})
+
 describe('instances', () => {
   it('getInstancesForDate returns only that date', async () => {
     const item = await repo.saveItem({ title: 'Task' })

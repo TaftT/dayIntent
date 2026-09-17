@@ -24,16 +24,37 @@ export function computeHabitStats(habitItem, allItems, allInstances) {
     allItems.filter((i) => i.title.trim().toLowerCase() === normalizedTitle).map((i) => i.id)
   )
 
-  const finalized = allInstances.filter((i) => matchingItemIds.has(i.itemId) && i.finalized)
+  const today = todayStr()
+  const mine = allInstances.filter((i) => matchingItemIds.has(i.itemId))
+
+  // Today's occurrence isn't finalized until the next day's rollover, so
+  // without this a habit marked done *today* wouldn't show on the strip or
+  // count toward the streak until tomorrow. Fold in the live status of any
+  // not-yet-finalized occurrence up to today, but only when it's actually
+  // been acted on — an untouched "pending" today shouldn't read as a miss.
+  const liveStatus = (inst) => {
+    if (inst.percentComplete >= 100) return 'completed'
+    if (inst.startPercent != null && inst.percentComplete > inst.startPercent) return 'worked_on'
+    return null
+  }
+  const contributions = []
+  for (const inst of mine) {
+    if (inst.finalized) {
+      contributions.push({ date: inst.date, status: inst.status })
+    } else if (inst.date <= today) {
+      const status = liveStatus(inst)
+      if (status) contributions.push({ date: inst.date, status })
+    }
+  }
 
   // Merge same-titled items' occurrences onto a single per-date status
   // before computing streaks — otherwise two items landing on the same date
   // would count as two separate days instead of one.
   const statusByDate = new Map()
-  for (const inst of finalized) {
-    const existing = statusByDate.get(inst.date)
-    if (!existing || STATUS_PRIORITY[inst.status] > STATUS_PRIORITY[existing]) {
-      statusByDate.set(inst.date, inst.status)
+  for (const { date, status } of contributions) {
+    const existing = statusByDate.get(date)
+    if (!existing || STATUS_PRIORITY[status] > STATUS_PRIORITY[existing]) {
+      statusByDate.set(date, status)
     }
   }
   const dates = Array.from(statusByDate.keys()).sort()
@@ -59,7 +80,6 @@ export function computeHabitStats(habitItem, allItems, allInstances) {
     }
   }
 
-  const today = todayStr()
   const history = Array.from({ length: HISTORY_DAYS }, (_, i) => {
     const date = addDaysStr(today, i - (HISTORY_DAYS - 1))
     return { date, status: statusByDate.get(date) ?? null }

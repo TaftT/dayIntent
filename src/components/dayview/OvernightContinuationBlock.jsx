@@ -1,9 +1,10 @@
 import { useItem } from '../../hooks/useItem.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { useAppStore } from '../../store/useAppStore.js'
+import { useAuthStore } from '../../store/useAuthStore.js'
 import { getDisplayStatus } from '../../data/rollover.js'
 import { minutesToPx, MIN_BLOCK_HEIGHT_PX } from './gridConstants.js'
-import { contrastTextColor } from '../../utils/colorUtils.js'
+import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 
 /**
  * The portion of yesterday's overnight item (e.g. sleep) that runs past
@@ -16,11 +17,13 @@ export function OvernightContinuationBlock({ continuation }) {
   const item = useItem(continuation.itemId)
   const category = useCategoryById(item?.categoryId)
   const openModal = useAppStore((s) => s.openModal)
+  const hideSynced = useAuthStore((s) => Boolean(s.user) && s.needsUnlock)
 
   if (!item) return null
+  if (hideSynced && item.syncEnabled) return null // hidden while cloud sync is locked
 
   const status = getDisplayStatus(continuation)
-  const color = category?.color ?? '#7a8896'
+  const color = category?.color ?? UNCATEGORIZED_COLOR
   const textColor = contrastTextColor(color)
   const height = Math.max(minutesToPx(continuation.overflowMinutes), MIN_BLOCK_HEIGHT_PX)
   const isSleep = category?.name === 'Sleep'

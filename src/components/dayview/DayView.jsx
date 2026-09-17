@@ -6,6 +6,7 @@ import { TopBar } from '../layout/TopBar.jsx'
 import { AllDayRow } from './AllDayRow.jsx'
 import { DayGrid } from './DayGrid.jsx'
 import { JournalPanel } from '../journal/JournalPanel.jsx'
+import { Icon } from '../shared/Icon.jsx'
 import { useInstancesForDate } from '../../hooks/useInstancesForDate.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
@@ -49,7 +50,11 @@ export function DayView() {
     .filter((i) => i.overflowMinutes > 0)
   const moveInstanceTime = useEntityStore((s) => s.moveInstanceTime)
   const journalOpen = useAppStore((s) => s.journalOpen)
+  const openModal = useAppStore((s) => s.openModal)
   const setCurrentDate = useAppStore((s) => s.setCurrentDate)
+  const selectedInstanceIds = useAppStore((s) => s.selectedInstanceIds)
+  const clearInstanceSelection = useAppStore((s) => s.clearInstanceSelection)
+  const setGroupDragDeltaY = useAppStore((s) => s.setGroupDragDeltaY)
   const sensors = usePlannerSensors()
 
   // Remember the last-viewed day so navigating back from the Backlog page
@@ -57,6 +62,12 @@ export function DayView() {
   useEffect(() => {
     setCurrentDate(date)
   }, [date, setCurrentDate])
+
+  // A multi-select only makes sense for the day it was built on — drop it
+  // when paging to another day or leaving the view.
+  useEffect(() => {
+    return () => clearInstanceSelection()
+  }, [date, clearInstanceSelection])
 
   useEffect(() => {
     if (mountedDateRef.current !== date) {
@@ -76,14 +87,38 @@ export function DayView() {
     }
   }, [])
 
-  const handleDragEnd = (event) => {
+  const isGroupDrag = (event) => {
+    const dragged = event.active.data.current?.instance
+    return Boolean(
+      dragged && selectedInstanceIds.length > 1 && selectedInstanceIds.includes(dragged.id)
+    )
+  }
+
+  // While a selected block is being dragged, publish its live vertical offset
+  // so every other selected block can follow it on screen (see InstanceBlock).
+  const handleDragMove = (event) => {
+    setGroupDragDeltaY(isGroupDrag(event) ? event.delta.y : 0)
+  }
+
+  const handleDragEnd = async (event) => {
+    setGroupDragDeltaY(0)
     const { active, delta } = event
-    const instance = active.data.current?.instance
-    if (!instance || instance.isAllDay) return
-    const duration = instance.durationMinutes ?? 30
-    const newTime = applyDeltaToTime(instance.time, delta.y, duration)
-    if (newTime !== instance.time) {
-      moveInstanceTime(instance.id, newTime)
+    const dragged = active.data.current?.instance
+    if (!dragged || dragged.isAllDay) return
+
+    // If the block being dragged is part of a multi-select, shift every
+    // selected timed block by the same vertical delta; otherwise just move
+    // the one.
+    const targetIds = isGroupDrag(event) ? selectedInstanceIds : [dragged.id]
+    const targets = targetIds
+      .map((id) => (id === dragged.id ? dragged : instances.find((i) => i.id === id)))
+      .filter((i) => i && !i.isAllDay && i.time)
+
+    for (const inst of targets) {
+      const newTime = applyDeltaToTime(inst.time, delta.y, inst.durationMinutes ?? 30)
+      if (newTime !== inst.time) {
+        await moveInstanceTime(inst.id, newTime)
+      }
     }
   }
 
@@ -117,7 +152,13 @@ export function DayView() {
   return (
     <div className="day-view" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       <TopBar date={date} />
-      <DndContext sensors={sensors} modifiers={[restrictToVerticalAxis]} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        modifiers={[restrictToVerticalAxis]}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setGroupDragDeltaY(0)}
+      >
         <div key={`allday-${date}`} className={slideDirection ? `day-slide-${slideDirection}` : undefined}>
           <AllDayRow instances={instances} date={date} />
         </div>
@@ -127,6 +168,23 @@ export function DayView() {
           </div>
         </div>
       </DndContext>
+      {selectedInstanceIds.length > 0 && (
+        <div className="multi-select-bar">
+          <span>{selectedInstanceIds.length} selected · drag any block to move them together</span>
+          <button type="button" className="btn btn-subtle" onClick={clearInstanceSelection}>
+            Clear
+          </button>
+        </div>
+      )}
+      {!journalOpen && selectedInstanceIds.length === 0 && (
+        <button
+          className="fab"
+          onClick={() => openModal('quickAdd', { date })}
+          aria-label="Quick add item"
+        >
+          <Icon name="plus" size={24} />
+        </button>
+      )}
       {journalOpen && <JournalPanel date={date} />}
     </div>
   )

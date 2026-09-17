@@ -6,10 +6,13 @@ import { ItemDetailModal } from '../itemdetail/ItemDetailModal.jsx'
 import { CategoryManagerModal } from '../categories/CategoryManagerModal.jsx'
 import { SearchModal } from '../search/SearchModal.jsx'
 import { DatePickerModal } from '../dayview/DatePickerModal.jsx'
+import { QuickAddModal } from '../dayview/QuickAddModal.jsx'
 import { AuthModal } from '../auth/AuthModal.jsx'
 import { UnlockPrompt } from '../auth/UnlockPrompt.jsx'
+import { SyncMismatchPrompt } from '../auth/SyncMismatchPrompt.jsx'
 import { ReminderScheduler } from '../notifications/ReminderScheduler.jsx'
 import { ToastContainer } from '../notifications/ToastContainer.jsx'
+import { BottomNav } from './BottomNav.jsx'
 import { seedIfEmpty } from '../../data/devSeed.js'
 
 export function AppShell({ children }) {
@@ -45,16 +48,19 @@ export function AppShell({ children }) {
 
   return (
     <div className="app-shell">
-      {children}
+      <div className="app-main">{children}</div>
+      <BottomNav />
       {activeModal?.type === 'itemDetail' && isOpeningLockedItem && <UnlockPrompt />}
       {activeModal?.type === 'itemDetail' && !isOpeningLockedItem && (
         <ItemDetailModal key={activeModal.props.itemId ?? 'new'} {...activeModal.props} />
       )}
       {activeModal?.type === 'categoryManager' && <CategoryManagerModal />}
       {activeModal?.type === 'search' && <SearchModal />}
+      {activeModal?.type === 'quickAdd' && <QuickAddModal {...activeModal.props} />}
       {activeModal?.type === 'datePicker' && <DatePickerModal {...activeModal.props} />}
       {activeModal?.type === 'auth' && <AuthModal />}
       {activeModal?.type === 'unlock' && <UnlockPrompt />}
+      {activeModal?.type === 'syncMismatch' && <SyncMismatchPrompt />}
       <ReminderScheduler />
       <ToastContainer />
     </div>

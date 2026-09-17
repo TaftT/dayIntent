@@ -4,6 +4,7 @@ import { useCategoryById } from '../../hooks/useCategories.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
+import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 
 export function BacklogListItem({ item }) {
   const category = useCategoryById(item.categoryId)
@@ -45,19 +46,9 @@ export function BacklogListItem({ item }) {
   const parent = item.parentIds.length > 0 ? items.find((i) => i.id === item.parentIds[0]) : null
   const childCount = item.childIds.length
 
-  if (isLocked) {
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className="backlog-list-item item-locked"
-        onClick={() => openModal('itemDetail', { itemId: item.id })}
-      >
-        <span aria-hidden="true">🔒</span>
-        <span className="backlog-item-title">Locked until you unlock sync</span>
-      </div>
-    )
-  }
+  // Synced items are hidden while sync is locked (see useBacklogItems); this
+  // is just a belt-and-braces guard for any other path that renders a row.
+  if (isLocked) return null
 
   return (
     <div
@@ -69,7 +60,7 @@ export function BacklogListItem({ item }) {
       onClick={() => openModal('itemDetail', { itemId: item.id })}
     >
       {parent && <span className="backlog-child-connector">↳</span>}
-      <span className="category-dot" style={{ background: category?.color ?? '#7a8896' }} />
+      <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
       <span className="backlog-item-title">{item.title}</span>
       {parent && <span className="badge backlog-parent-label" title="Parent task">of {parent.title}</span>}
       {childCount > 0 && (
