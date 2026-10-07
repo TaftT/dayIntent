@@ -1,6 +1,6 @@
 import { useCategories } from '../../hooks/useCategories.js'
 import { useAppStore } from '../../store/useAppStore.js'
-import { BACKLOG_TABS } from '../../hooks/useBacklogItems.js'
+import { BACKLOG_TABS, UNCATEGORIZED_FILTER } from '../../hooks/useBacklogItems.js'
 
 export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
   const categories = useCategories()
@@ -38,6 +38,7 @@ export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
           aria-label="Filter by category"
         >
           <option value="">All categories</option>
+          <option value={UNCATEGORIZED_FILTER}>Uncategorized</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}

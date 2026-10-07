@@ -27,7 +27,7 @@ export const DEFAULT_COLOR_SWATCHES = [
 ]
 
 // Everything offered in the color picker: the defaults plus extra hues and
-// neutral grays. The grays are deliberately darker than UNCATEGORIZED_COLOR
+// neutral grays. The grays are deliberately a bit darker than UNCATEGORIZED_COLOR
 // so a real category/group never looks like "no category".
 export const CATEGORY_COLOR_SWATCHES = [
   ...DEFAULT_COLOR_SWATCHES,
@@ -38,6 +38,6 @@ export const CATEGORY_COLOR_SWATCHES = [
   '#5b5bd6', // indigo
   '#c2185b', // magenta
   '#b5651d', // rust
-  '#8b93a0', // slate gray
+  '#b3b9c4', // light gray — a touch darker than the "no category" gray
   '#4a4f57', // charcoal
 ]
