@@ -1402,7 +1402,7 @@
 
 .category-list-item .color-swatch-picker {
   flex-basis: 100%;
-  padding-left: 28px;
+  padding-left: 46px;
 }
 
 .category-list-item input[type='text'] {
@@ -2948,15 +2948,34 @@
   color: var(--color-text-muted);
 }
 
-.order-controls {
-  display: inline-flex;
-  flex-direction: column;
+.order-handle {
+  flex-shrink: 0;
+  width: 36px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.2rem;
+  letter-spacing: -3px;
+  cursor: grab;
+  touch-action: none;
 }
 
-.order-controls .icon-button {
-  padding: 0 6px;
-  font-size: 0.6rem;
-  line-height: 1.2;
+.order-handle:hover {
+  background: var(--color-bg-alt);
+}
+
+.category-list-item {
+  background: var(--color-bg);
+}
+
+.category-list-item.dragging {
+  position: relative;
+  z-index: 5;
+  opacity: 0.9;
+  box-shadow: var(--shadow-modal);
 }
 
 .group-member-count {

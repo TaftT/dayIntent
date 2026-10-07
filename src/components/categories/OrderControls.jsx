@@ -1,38 +1,17 @@
-// Move up / move down buttons for one row of an ordered list. Buttons rather
-// than drag handles: they work the same with a finger or a mouse and never
-// fight with scrolling.
-export function OrderControls({ index, count, onMove }) {
+// Drag handle for one row of a drag-to-reorder list. Only the handle starts a
+// drag, so scrolling the list and tapping the row's other controls never do.
+export function DragHandle({ setActivatorNodeRef, listeners, attributes, label = 'Drag to reorder' }) {
   return (
-    <span className="order-controls">
-      <button
-        type="button"
-        className="icon-button"
-        onClick={() => onMove(index, index - 1)}
-        disabled={index === 0}
-        aria-label="Move up"
-        title="Move up"
-      >
-        ▲
-      </button>
-      <button
-        type="button"
-        className="icon-button"
-        onClick={() => onMove(index, index + 1)}
-        disabled={index === count - 1}
-        aria-label="Move down"
-        title="Move down"
-      >
-        ▼
-      </button>
-    </span>
+    <button
+      type="button"
+      ref={setActivatorNodeRef}
+      className="order-handle"
+      aria-label={label}
+      title={label}
+      {...listeners}
+      {...attributes}
+    >
+      ⋮⋮
+    </button>
   )
-}
-
-/** Returns a copy of `ids` with the entry at `from` moved to `to`. */
-export function moveInList(ids, from, to) {
-  if (to < 0 || to >= ids.length || from === to) return ids
-  const next = ids.slice()
-  const [moved] = next.splice(from, 1)
-  next.splice(to, 0, moved)
-  return next
 }

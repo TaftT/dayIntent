@@ -1,19 +1,27 @@
 import { useState } from 'react'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { ColorSwatchPicker } from './ColorSwatchPicker.jsx'
-import { OrderControls } from './OrderControls.jsx'
+import { DragHandle } from './OrderControls.jsx'
 import { ConfirmModal } from '../shared/ConfirmModal.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
 
-export function GroupListItem({ group, index, count, onMove }) {
+export function GroupListItem({ group }) {
   const saveGroup = useEntityStore((s) => s.saveGroup)
   const deleteGroup = useEntityStore((s) => s.deleteGroup)
   const memberCount = useEntityStore((s) => s.items.filter((i) => i.groupId === group.id).length)
   const [name, setName] = useState(group.name)
   const [confirming, setConfirming] = useState(false)
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id: group.id })
 
   return (
-    <div className="category-list-item">
-      <OrderControls index={index} count={count} onMove={onMove} />
+    <div
+      ref={setNodeRef}
+      className={`category-list-item ${isDragging ? 'dragging' : ''}`}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+    >
+      <DragHandle setActivatorNodeRef={setActivatorNodeRef} listeners={listeners} attributes={attributes} />
       <input
         type="text"
         value={name}
@@ -23,7 +31,6 @@ export function GroupListItem({ group, index, count, onMove }) {
       <span className="group-member-count" title="Tasks in this group">
         {memberCount}
       </span>
-      <ColorSwatchPicker color={group.color} onChange={(color) => saveGroup({ id: group.id, color })} />
       <button
         type="button"
         className="icon-button"
@@ -32,6 +39,7 @@ export function GroupListItem({ group, index, count, onMove }) {
       >
         🗑
       </button>
+      <ColorSwatchPicker color={group.color} onChange={(color) => saveGroup({ id: group.id, color })} />
       {confirming && (
         <ConfirmModal
           title="Delete group?"

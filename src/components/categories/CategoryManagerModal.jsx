@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import { DndContext, closestCenter } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { Modal } from '../shared/Modal.jsx'
 import { Button } from '../shared/Button.jsx'
 import { CategoryListItem } from './CategoryListItem.jsx'
 import { GroupListItem } from './GroupListItem.jsx'
-import { moveInList } from './OrderControls.jsx'
+import { usePlannerSensors } from '../../utils/dnd/dndContextConfig.js'
 import { useCategories } from '../../hooks/useCategories.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
@@ -21,6 +24,7 @@ export function CategoryManagerModal({ initialTab = 'categories' }) {
   const closeModal = useAppStore((s) => s.closeModal)
   const [tab, setTab] = useState(initialTab)
   const [newName, setNewName] = useState('')
+  const sensors = usePlannerSensors()
 
   const isGroups = tab === 'groups'
   const list = isGroups ? groups : categories
@@ -37,13 +41,11 @@ export function CategoryManagerModal({ initialTab = 'categories' }) {
     setNewName('')
   }
 
-  const move = (from, to) => {
-    const ids = moveInList(
-      list.map((x) => x.id),
-      from,
-      to
-    )
-    return isGroups ? reorderGroups(ids) : reorderCategories(ids)
+  const handleDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return
+    const ids = list.map((x) => x.id)
+    const next = arrayMove(ids, ids.indexOf(active.id), ids.indexOf(over.id))
+    return isGroups ? reorderGroups(next) : reorderCategories(next)
   }
 
   return (
@@ -70,7 +72,7 @@ export function CategoryManagerModal({ initialTab = 'categories' }) {
           ))}
         </div>
         <p className="manager-hint">
-          Use the arrows to set the order — it&apos;s the order they appear in everywhere you pick one.
+          Drag the handles to set the order — it&apos;s the order they appear in everywhere you pick one.
         </p>
         <div className="category-add-row">
           <input
@@ -84,13 +86,22 @@ export function CategoryManagerModal({ initialTab = 'categories' }) {
             Add
           </Button>
         </div>
-        {list.map((entry, index) =>
-          isGroups ? (
-            <GroupListItem key={entry.id} group={entry} index={index} count={list.length} onMove={move} />
-          ) : (
-            <CategoryListItem key={entry.id} category={entry} index={index} count={list.length} onMove={move} />
-          )
-        )}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis]}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={list.map((x) => x.id)} strategy={verticalListSortingStrategy}>
+            {list.map((entry) =>
+              isGroups ? (
+                <GroupListItem key={entry.id} group={entry} />
+              ) : (
+                <CategoryListItem key={entry.id} category={entry} />
+              )
+            )}
+          </SortableContext>
+        </DndContext>
         {list.length === 0 && <div className="empty-state">Nothing here yet.</div>}
       </div>
     </Modal>
