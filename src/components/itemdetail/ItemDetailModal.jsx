@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Modal } from '../shared/Modal.jsx'
 import { Button } from '../shared/Button.jsx'
+import { ToggleButton } from '../shared/ToggleButton.jsx'
+import { InfoTip } from '../shared/InfoTip.jsx'
 import { DurationStepper } from './DurationStepper.jsx'
 import { DaysStepper } from './DaysStepper.jsx'
 import { StartTimeEditor } from './StartTimeEditor.jsx'
@@ -70,6 +72,19 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   // won't be pushed to the cloud on a later sign-in.
   const [syncEnabled, setSyncEnabled] = useState(existingItem?.syncEnabled ?? signedIn)
   const [error, setError] = useState('')
+  const [saveMenuOpen, setSaveMenuOpen] = useState(false)
+  // Notes, recurrence, habit, sync and links stay tucked away until asked for.
+  // Starts open when anything inside has already been set, so existing values
+  // are never hidden; otherwise stays collapsed.
+  const [showMore, setShowMore] = useState(
+    () =>
+      Boolean(recurrence) ||
+      isHabit ||
+      (!isCreate && percentComplete > 0) ||
+      notes.replace(/<[^>]*>|&nbsp;/g, '').trim() !== '' ||
+      Boolean(existingItem && (existingItem.parentIds?.length || existingItem.childIds?.length)) ||
+      (!isCreate && syncEnabled !== signedIn)
+  )
 
   // Deleting one occurrence of a recurring series is ambiguous — "delete"
   // could mean just this day or the whole series — so a recurring item
@@ -82,7 +97,10 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   // `applyToSeries` only matters for a recurring-instance edit — everywhere
   // else there's only ever one save button, and it always means "apply
   // to the item," so the default (false) is a no-op there.
-  const handleSave = async (applyToSeries = false) => {
+  // `percentOverride` lets "Mark complete" save 100% in the same call —
+  // state set just before handleSave wouldn't be visible to it yet.
+  const handleSave = async (applyToSeries = false, percentOverride = null) => {
+    const percent = percentOverride ?? percentComplete
     if (!title.trim()) {
       setError('Title is required')
       return
@@ -155,8 +173,8 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
         if (!applyToSeries && !isAllDay && startTime !== instance?.time) {
           await moveInstanceTime(instanceId, startTime)
         }
-        if (percentComplete !== instance?.percentComplete) {
-          await setInstancePercentComplete(instanceId, percentComplete)
+        if (percent !== instance?.percentComplete) {
+          await setInstancePercentComplete(instanceId, percent)
         }
         if (notes !== instance?.notes) {
           await setInstanceNotes(instanceId, notes)
@@ -166,7 +184,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
         }
         await updateItem(itemId, payload)
       } else {
-        await updateItem(itemId, { ...payload, percentComplete, notes })
+        await updateItem(itemId, { ...payload, percentComplete: percent, notes })
       }
       closeModal()
     } catch (err) {
@@ -196,6 +214,18 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
     closeModal()
   }
 
+  const handleAllDayChange = (next) => {
+    setIsAllDay(next)
+    // Switching in/out of all-day swaps the meaning of the duration field, so
+    // reset it to a sane default for the new mode unless it already holds a
+    // value that fits.
+    if (next) {
+      setDurationMinutes((d) => (d && d % MINUTES_PER_DAY === 0 ? d : MINUTES_PER_DAY))
+    } else {
+      setDurationMinutes((d) => (d && d % MINUTES_PER_DAY === 0 ? 30 : (d ?? 30)))
+    }
+  }
+
   const footer = (
     <>
       {isRecurringInstance ? (
@@ -222,23 +252,49 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
       <Button variant="subtle" onClick={closeModal}>
         Cancel
       </Button>
-      {isRecurringInstance && (
-        <Button
-          variant="subtle"
-          onClick={() => handleSave(true)}
-          title="Applies time, duration and all-day changes to every future occurrence, not just this one"
-        >
-          Save for all
-        </Button>
-      )}
-      <Button variant="primary" onClick={() => handleSave(false)}>
-        Save
-      </Button>
     </>
   )
 
+  // A recurring occurrence has two meanings of "save", so the header button
+  // turns into a menu offering both; everywhere else it's a plain button.
+  const saveButton = isRecurringInstance ? (
+    <div className="save-menu">
+      <Button
+        variant="primary"
+        onClick={() => setSaveMenuOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={saveMenuOpen}
+      >
+        Save ▾
+      </Button>
+      {saveMenuOpen && (
+        <div className="save-menu-list" role="menu">
+          <button type="button" role="menuitem" onClick={() => handleSave(false)}>
+            Save this event
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => handleSave(true)}
+            title="Applies time, duration and all-day changes to every future occurrence, not just this one"
+          >
+            Save for all
+          </button>
+        </div>
+      )}
+    </div>
+  ) : (
+    <Button variant="primary" onClick={() => handleSave(false)}>
+      Save
+    </Button>
+  )
+
   return (
-    <Modal title={isCreate ? 'New Item' : 'Edit Item'} onClose={closeModal} footer={footer}>
+    <Modal
+      title={isCreate ? 'New Item' : 'Edit Item'}
+      onClose={closeModal}
+      headerAction={saveButton}
+    >
       <div className="item-detail-form">
         <input
           type="text"
@@ -250,8 +306,10 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
         />
         {error && <div className="form-error">{error}</div>}
 
-        {date && (
-          <div className="scheduled-info-row">
+        <CategoryPicker categoryId={categoryId} onChange={setCategoryId} />
+
+        <div className="scheduled-info-row">
+          {date && (
             <input
               type="date"
               className="scheduled-date-input"
@@ -259,83 +317,82 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
               onChange={(e) => setScheduledDate(e.target.value)}
               aria-label="Scheduled date"
             />
-            {!isAllDay && <StartTimeEditor time={startTime} onChange={setStartTime} />}
-          </div>
-        )}
-        {date && isRecurringInstance && (
-          <div className="form-hint">
-            Changing the date only moves this occurrence. Changing the time moves just this
-            occurrence on "Save", or the whole series' regular time on "Save for all".
-          </div>
-        )}
-
-        <label className="reminder-toggle">
-          <input
-            type="checkbox"
-            checked={isAllDay}
-            onChange={(e) => {
-              const next = e.target.checked
-              setIsAllDay(next)
-              // Switching in/out of all-day swaps the meaning of the
-              // duration field, so reset it to a sane default for the new
-              // mode unless it already holds a value that fits.
-              if (next) {
-                setDurationMinutes((d) => (d && d % MINUTES_PER_DAY === 0 ? d : MINUTES_PER_DAY))
-              } else {
-                setDurationMinutes((d) => (d && d % MINUTES_PER_DAY === 0 ? 30 : (d ?? 30)))
-              }
-            }}
-          />
-          All day
-        </label>
-
+          )}
+          {date && !isAllDay && <StartTimeEditor time={startTime} onChange={setStartTime} />}
+          {date && isRecurringInstance && (
+            <InfoTip label="About changing the date or time">
+              Changing the date only moves this occurrence. Changing the time moves just this
+              occurrence on "Save", or the whole series' regular time on "Save for all".
+            </InfoTip>
+          )}
+          <ToggleButton pressed={isAllDay} onChange={handleAllDayChange}>
+            All day
+          </ToggleButton>
+        </div>
         {isAllDay ? (
           <DaysStepper
             days={allDayDaysFromMinutes(durationMinutes)}
             onChange={(d) => setDurationMinutes(d * MINUTES_PER_DAY)}
+            info={isRecurringInstance ? (
+              <InfoTip label="About changing the duration">
+                Duration/all-day changes only apply to this occurrence — use "Save for all" in the Save menu to change every future one.
+              </InfoTip>
+            ) : null}
           />
         ) : (
           <DurationStepper
             durationMinutes={durationMinutes}
             onChange={setDurationMinutes}
             startTime={date ? startTime : null}
+            info={isRecurringInstance ? (
+              <InfoTip label="About changing the duration">
+                Duration/all-day changes only apply to this occurrence — use "Save for all" in the Save menu to change every future one.
+              </InfoTip>
+            ) : null}
           />
         )}
-        {isRecurringInstance && (
-          <div className="form-hint">
-            Duration/all-day changes only apply to this occurrence — use "Save for all" below to change every future one.
-          </div>
-        )}
-
         {!isCreate && (
-          <PercentCompleteSlider percentComplete={percentComplete} onChange={setPercentComplete} />
+          <Button variant="success" onClick={() => { setPercentComplete(100); handleSave(false, 100) }}>
+            ✓ Mark complete
+          </Button>
         )}
 
-        <CategoryPicker categoryId={categoryId} onChange={setCategoryId} />
+        <button
+          type="button"
+          className="btn btn-subtle more-options-toggle"
+          aria-expanded={showMore}
+          onClick={() => setShowMore((v) => !v)}
+        >
+          {showMore ? 'Fewer options ▴' : 'More options ▾'}
+        </button>
 
-        <RichTextEditor value={notes} onChange={setNotes} className="notes-editor" placeholder="Notes" />
+        {showMore && (
+          <>
+          {!isCreate && (
+            <PercentCompleteSlider percentComplete={percentComplete} onChange={setPercentComplete} />
+          )}
 
-        <RecurrenceEditor recurrence={recurrence} defaultStartDate={scheduledDate} onChange={setRecurrence} />
+          <RichTextEditor value={notes} onChange={setNotes} className="notes-editor" placeholder="Notes" />
 
-        {recurrence && (
-          <label className="reminder-toggle">
-            <input type="checkbox" checked={isHabit} onChange={(e) => setIsHabit(e.target.checked)} />
-            Track as habit (see stats on the Stats page)
-          </label>
+          <RecurrenceEditor recurrence={recurrence} defaultStartDate={scheduledDate} onChange={setRecurrence} />
+
+          {recurrence && (
+            <ToggleButton pressed={isHabit} onChange={setIsHabit}>
+              Track as habit
+            </ToggleButton>
+          )}
+
+          {signedIn && (
+            <ToggleButton pressed={syncEnabled} onChange={setSyncEnabled}>
+              Sync to cloud
+            </ToggleButton>
+          )}
+
+          {!isCreate && existingItem && <ParentChildLinker item={existingItem} />}
+
+          <div className="item-detail-actions">{footer}</div>
+          </>
         )}
-
-        {signedIn && (
-          <label className="reminder-toggle">
-            <input
-              type="checkbox"
-              checked={syncEnabled}
-              onChange={(e) => setSyncEnabled(e.target.checked)}
-            />
-            Sync to cloud
-          </label>
-        )}
-
-        {!isCreate && existingItem && <ParentChildLinker item={existingItem} />}
       </div>
     </Modal>
   )

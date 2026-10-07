@@ -5,6 +5,17 @@ import { runRollover } from '../data/rollover.js'
 import { regenerateFutureInstances } from '../data/recurrence.js'
 import { todayStr, addDaysStr, timeStrToMinutes } from '../utils/dateUtils.js'
 
+// True once an occurrence is entirely in the past: an earlier date, or today
+// with its end time (start + duration) already behind the clock. All-day
+// items (no time) only count once their date has passed.
+export function hasElapsed(date, time, durationMinutes = 0) {
+  const today = todayStr()
+  if (date < today) return true
+  if (date > today || !time) return false
+  const now = new Date()
+  return timeStrToMinutes(time) + (durationMinutes || 0) <= now.getHours() * 60 + now.getMinutes()
+}
+
 const SLEEP_CATEGORY_NAME = 'Sleep'
 const SLEEP_CATEGORY_COLOR = '#8a5fd6'
 const SLEEP_ITEM_TITLE = 'Sleep'
@@ -298,7 +309,8 @@ export const useEntityStore = create((set, get) => ({
     // happen in. Marking it complete up front (rather than waiting for the
     // next rollover pass) makes getDisplayStatus show it as done right away;
     // rollover still finalizes it into locked-in history the normal way.
-    const isPastDate = date < todayStr()
+    const time = isAllDay ? null : (opts.time ?? '12:00')
+    const isPastDate = hasElapsed(date, time, item.durationMinutes)
 
     if (!item.recurrence) {
       const existing = await repo.getInstancesForItem(itemId)
@@ -310,7 +322,7 @@ export const useEntityStore = create((set, get) => ({
     const instance = await repo.saveInstance({
       itemId,
       date,
-      time: isAllDay ? null : (opts.time ?? '12:00'),
+      time,
       durationMinutes: item.durationMinutes,
       isAllDay,
       notes: item.notes,
@@ -325,7 +337,13 @@ export const useEntityStore = create((set, get) => ({
 
   moveInstanceTime: async (instanceId, newTime) => {
     const inst = await repo.getInstance(instanceId)
-    const updated = await repo.saveInstance({ ...inst, time: newTime, isAllDay: false })
+    const elapsed = hasElapsed(inst.date, newTime, inst.durationMinutes)
+    const updated = await repo.saveInstance({
+      ...inst,
+      time: newTime,
+      isAllDay: false,
+      percentComplete: elapsed ? 100 : inst.percentComplete,
+    })
     await clearUnscheduledFlag(inst.itemId)
     await get().loadInstancesForDate(inst.date)
     await get().refreshItems()
@@ -345,7 +363,9 @@ export const useEntityStore = create((set, get) => ({
       // percent reset — otherwise it shows up already "completed" on the new
       // date before any work has happened there. A still-pending instance
       // just being rescheduled keeps whatever in-progress percent it had.
-      percentComplete: inst.finalized ? 0 : inst.percentComplete,
+      percentComplete: hasElapsed(newDate, inst.isAllDay ? null : inst.time, inst.durationMinutes)
+        ? 100
+        : inst.finalized ? 0 : inst.percentComplete,
       finalized: false,
       status: 'pending',
       startPercent: null,

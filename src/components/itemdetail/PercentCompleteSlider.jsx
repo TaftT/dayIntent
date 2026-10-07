@@ -12,9 +12,6 @@ export function PercentCompleteSlider({ percentComplete, onChange }) {
         />
         <span className="percent-value">{percentComplete}%</span>
       </div>
-      <button type="button" className="btn btn-subtle" onClick={() => onChange(100)}>
-        Mark complete
-      </button>
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { format, parseISO, addDays, isSameDay } from 'date-fns'
+import { format, parseISO, addDays, isSameDay, startOfWeek, endOfWeek } from 'date-fns'
 
 export const DATE_FMT = 'yyyy-MM-dd'
 
@@ -20,6 +20,15 @@ export function fromDateStr(dateStr) {
 /** @param {string} dateStr @param {number} n @returns {string} */
 export function addDaysStr(dateStr, n) {
   return toDateStr(addDays(fromDateStr(dateStr), n))
+}
+
+/** @returns {{from: string, to: string}} the current calendar week, Sunday through Saturday */
+export function currentWeekRange() {
+  const now = new Date()
+  return {
+    from: toDateStr(startOfWeek(now, { weekStartsOn: 0 })),
+    to: toDateStr(endOfWeek(now, { weekStartsOn: 0 })),
+  }
 }
 
 /** @param {string} a @param {string} b */
