@@ -1,16 +1,18 @@
 import { create } from 'zustand'
 import * as fbAuth from '../firebase/auth.js'
 import { deriveMasterKey } from '../firebase/crypto.js'
+import { saveMasterKey, loadMasterKey, clearMasterKeys } from '../firebase/keyStore.js'
 import * as syncEngine from '../sync/syncEngine.js'
 import { firebaseEnabled } from '../firebase/config.js'
 import * as repo from '../data/index.js'
 import { useEntityStore } from './useEntityStore.js'
 
 // Auth is entirely optional — the app must work fully offline with no one
-// signed in. masterKey lives only in memory (never localStorage/IndexedDB):
-// it's re-derived from the user's password each time they sign in or unlock,
-// so a page refresh keeps the Firebase session but loses the key, which
-// needsUnlock (below) surfaces as a "re-enter your password" prompt.
+// signed in. masterKey is derived from the user's password on sign-in/unlock
+// and held in memory; the non-extractable key (never the password) is also
+// remembered in firebase/keyStore.js so a page refresh can restore it. If
+// that's missing or stale, needsUnlock (below) surfaces a "re-enter your
+// password" prompt.
 let listenerAttached = false
 
 export const useAuthStore = create((set, get) => ({
@@ -39,6 +41,7 @@ export const useAuthStore = create((set, get) => ({
     fbAuth.onAuthStateChanged((user) => {
       if (user) {
         set({ user: { uid: user.uid, email: user.email }, ready: true, needsUnlock: !get().masterKey })
+        if (!get().masterKey) get()._restoreSession(user.uid, user.email)
       } else {
         // Distinguish a real sign-out (was signed in, now not) from just
         // starting the app while signed out — only the former purges synced
@@ -47,7 +50,10 @@ export const useAuthStore = create((set, get) => ({
         const wasSignedIn = get().user !== null
         syncEngine.stop()
         set({ user: null, masterKey: null, needsUnlock: false, ready: true, ownerMismatch: false, pendingMasterKey: null })
-        if (wasSignedIn) get()._purgeSyncedOnSignOut()
+        if (wasSignedIn) {
+          clearMasterKeys()
+          get()._purgeSyncedOnSignOut()
+        }
       }
     })
   },
@@ -66,6 +72,21 @@ export const useAuthStore = create((set, get) => ({
     await entities.reloadLoadedDates()
   },
 
+  // After a refresh the Firebase session survives but the in-memory key
+  // doesn't — reuse the key remembered in keyStore so the user isn't asked for
+  // their password again. If it's missing or no longer works (e.g. password
+  // changed elsewhere), needsUnlock stays true and the normal prompt appears.
+  _restoreSession: async (uid, email) => {
+    const stored = await loadMasterKey(uid)
+    if (!stored || get().masterKey || get().user?.uid !== uid) return
+    try {
+      await get()._completeSignIn(uid, email, stored)
+    } catch {
+      await clearMasterKeys()
+      set({ masterKey: null, needsUnlock: true })
+    }
+  },
+
   // Shared by signUp/signIn/unlock: starts the sync engine and commits
   // masterKey/needsUnlock only once it actually succeeds. On an owner
   // mismatch, masterKey is still committed (the password itself was valid —
@@ -78,9 +99,11 @@ export const useAuthStore = create((set, get) => ({
     try {
       await syncEngine.start(uid, masterKey)
       set({ masterKey, needsUnlock: false })
+      saveMasterKey(uid, masterKey)
     } catch (err) {
       if (err instanceof syncEngine.OwnerMismatchError) {
         set({ masterKey, needsUnlock: false, ownerMismatch: true, pendingMasterKey: masterKey })
+        saveMasterKey(uid, masterKey)
         return
       }
       throw err
@@ -156,6 +179,7 @@ export const useAuthStore = create((set, get) => ({
   signOut: async () => {
     syncEngine.stop()
     await fbAuth.signOutUser()
+    await clearMasterKeys()
     set({ user: null, masterKey: null, needsUnlock: false, ownerMismatch: false, pendingMasterKey: null })
     // The onAuthStateChanged listener above sees user go null too, but by now
     // get().user is already cleared so its wasSignedIn guard is false — do the

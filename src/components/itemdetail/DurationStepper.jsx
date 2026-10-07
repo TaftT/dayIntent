@@ -1,6 +1,6 @@
 import { timeStrToMinutes, minutesToTimeStr, formatTimeLabel } from '../../utils/dateUtils.js'
 
-export function DurationStepper({ durationMinutes, onChange, startTime }) {
+export function DurationStepper({ durationMinutes, onChange, startTime, info }) {
   const isReminder = durationMinutes === null
 
   // Stepping below 10 minutes drops into "no duration" (a reminder) instead
@@ -27,7 +27,7 @@ export function DurationStepper({ durationMinutes, onChange, startTime }) {
       <div className="stepper-controls">
         <button
           type="button"
-          className="icon-button"
+          className="btn btn-subtle stepper-btn"
           onClick={decrement}
           disabled={isReminder}
           aria-label="Decrease duration by 10 minutes"
@@ -36,10 +36,11 @@ export function DurationStepper({ durationMinutes, onChange, startTime }) {
         </button>
         <span className="stepper-value">
           {isReminder ? 'No duration (reminder)' : formatDuration(durationMinutes)}
+          {info}
         </span>
         <button
           type="button"
-          className="icon-button"
+          className="btn btn-subtle stepper-btn"
           onClick={increment}
           aria-label="Increase duration by 10 minutes"
         >

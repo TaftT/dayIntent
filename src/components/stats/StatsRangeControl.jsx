@@ -1,4 +1,4 @@
-import { todayStr, addDaysStr } from '../../utils/dateUtils.js'
+import { todayStr, addDaysStr, currentWeekRange } from '../../utils/dateUtils.js'
 
 // Presets are offsets back from today; `null` days means "all time" and is
 // resolved by the caller (it has the earliest record on hand).
@@ -14,6 +14,9 @@ export function rangeForPresetDays(days) {
 }
 
 export function StatsRangeControl({ from, to, onChange }) {
+  const week = currentWeekRange()
+  const isThisWeek = week.from === from && week.to === to
+
   const activePresetDays = PRESETS.find((p) => {
     const r = rangeForPresetDays(p.days)
     return r.from === from && r.to === to
@@ -22,6 +25,13 @@ export function StatsRangeControl({ from, to, onChange }) {
   return (
     <div className="stats-range">
       <div className="stats-range-presets">
+        <button
+          type="button"
+          className={`stats-range-preset ${isThisWeek ? 'active' : ''}`}
+          onClick={() => onChange(currentWeekRange())}
+        >
+          This week
+        </button>
         {PRESETS.map((p) => (
           <button
             key={p.days}
@@ -49,7 +59,7 @@ export function StatsRangeControl({ from, to, onChange }) {
             type="date"
             value={to}
             min={from}
-            max={todayStr()}
+            max={week.to > todayStr() ? week.to : todayStr()}
             onChange={(e) => onChange({ from, to: e.target.value })}
           />
         </label>

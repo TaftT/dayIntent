@@ -1,9 +1,13 @@
 import { pxToMinutes } from '../../components/dayview/gridConstants.js'
 import { roundToTenMinutes, minutesToTimeStr, timeStrToMinutes } from '../dateUtils.js'
 
-/** @param {number} offsetY pixels from the top of the day grid @returns {string} 'HH:mm', snapped to 10 min */
+/**
+ * Maps a click position to the half-hour slot it landed in (rounded down, so
+ * a click anywhere in 9:30–10:00 gives 09:30 rather than a guessed minute).
+ * @param {number} offsetY pixels from the top of the day grid @returns {string} 'HH:mm' on the hour or half hour
+ */
 export function pxOffsetToTimeStr(offsetY) {
-  const minutes = roundToTenMinutes(pxToMinutes(Math.max(0, offsetY)))
+  const minutes = Math.floor(pxToMinutes(Math.max(0, offsetY)) / 30) * 30
   return minutesToTimeStr(minutes)
 }
 

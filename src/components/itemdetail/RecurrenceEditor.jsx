@@ -1,3 +1,5 @@
+import { ToggleButton } from '../shared/ToggleButton.jsx'
+
 const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
 export function RecurrenceEditor({ recurrence, defaultStartDate, onChange }) {
@@ -22,23 +24,22 @@ export function RecurrenceEditor({ recurrence, defaultStartDate, onChange }) {
 
   return (
     <div className="recurrence-editor">
-      <label className="reminder-toggle">
-        <input type="checkbox" checked={enabled} onChange={(e) => toggleEnabled(e.target.checked)} />
+      <ToggleButton pressed={enabled} onChange={toggleEnabled}>
         Repeats
-      </label>
+      </ToggleButton>
 
       {enabled && (
         <div className="recurrence-fields">
           <div className="recurrence-row">
-            <span>Every</span>
+            <span className="recurrence-label">Every</span>
             <input
               type="number"
               min={1}
               value={recurrence.interval}
               onChange={(e) => update({ interval: Math.max(1, Number(e.target.value)) })}
-              className="recurrence-interval-input"
+              className="recurrence-input recurrence-interval-input"
             />
-            <select value={recurrence.freq} onChange={(e) => update({ freq: e.target.value })}>
+            <select className="recurrence-input" value={recurrence.freq} onChange={(e) => update({ freq: e.target.value })}>
               <option value="daily">day(s)</option>
               <option value="weekly">week(s)</option>
               <option value="monthly">month(s)</option>
@@ -68,9 +69,10 @@ export function RecurrenceEditor({ recurrence, defaultStartDate, onChange }) {
           )}
 
           <div className="recurrence-row">
-            <span>Ends</span>
+            <span className="recurrence-label">Ends</span>
             <input
               type="date"
+              className="recurrence-input"
               value={recurrence.endDate ?? ''}
               onChange={(e) => update({ endDate: e.target.value || null })}
             />

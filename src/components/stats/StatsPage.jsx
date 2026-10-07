@@ -3,9 +3,9 @@ import { TopBar } from '../layout/TopBar.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { computeHabitStats } from '../../utils/habitStats.js'
-import { formatShortDate } from '../../utils/dateUtils.js'
+import { formatShortDate, currentWeekRange } from '../../utils/dateUtils.js'
 import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
-import { StatsRangeControl, rangeForPresetDays } from './StatsRangeControl.jsx'
+import { StatsRangeControl } from './StatsRangeControl.jsx'
 import { CategoryTimeSection } from './CategoryTimeSection.jsx'
 import { ScreenTimeSection } from './ScreenTimeSection.jsx'
 
@@ -69,7 +69,7 @@ export function StatsPage() {
   const items = useEntityStore((s) => s.items)
   const refreshAllInstances = useEntityStore((s) => s.refreshAllInstances)
   const refreshAllJournals = useEntityStore((s) => s.refreshAllJournals)
-  const [range, setRange] = useState(() => rangeForPresetDays(7))
+  const [range, setRange] = useState(currentWeekRange)
 
   useEffect(() => {
     refreshAllInstances()
