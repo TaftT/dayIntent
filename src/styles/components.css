@@ -2519,7 +2519,21 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 16px 0;
+  padding: 10px 16px 12px;
+}
+
+.backlog-view-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.backlog-organize-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  cursor: pointer;
 }
 
 .backlog-view-toggle {
@@ -2530,11 +2544,11 @@
 }
 
 .backlog-view-toggle button {
-  padding: 5px 14px;
+  padding: 9px 20px;
   border: none;
   background: transparent;
   color: var(--color-text-muted);
-  font-size: 0.82rem;
+  font-size: 0.92rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -3018,4 +3032,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.group-added {
+  border-color: #2f9e63;
+  color: #2f9e63;
 }

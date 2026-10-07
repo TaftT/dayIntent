@@ -1,3 +1,4 @@
+import { Icon } from '../shared/Icon.jsx'
 import { useCategories } from '../../hooks/useCategories.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { BACKLOG_TABS } from '../../hooks/useBacklogItems.js'
@@ -63,21 +64,24 @@ export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            className="btn btn-subtle"
-            onClick={() => openModal('categoryManager', { initialTab: 'groups' })}
-            title="Add, color and reorder groups and categories"
-          >
-            Organize
-          </button>
-          <button
-            type="button"
-            className={`btn btn-subtle backlog-select-btn ${selecting ? 'active' : ''}`}
-            onClick={onToggleSelecting}
-          >
-            {selecting ? 'Done selecting' : 'Select'}
-          </button>
+          <div className="backlog-view-actions">
+            <button
+              type="button"
+              className="btn btn-subtle backlog-organize-btn"
+              onClick={() => openModal('categoryManager', { initialTab: 'groups' })}
+              aria-label="Organize groups and categories"
+              title="Organize groups and categories"
+            >
+              <Icon name="categories" size={18} />
+            </button>
+            <button
+              type="button"
+              className={`btn btn-subtle backlog-select-btn ${selecting ? 'active' : ''}`}
+              onClick={onToggleSelecting}
+            >
+              {selecting ? 'Done selecting' : 'Select'}
+            </button>
+          </div>
         </div>
       )}
     </div>
