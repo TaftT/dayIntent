@@ -1388,7 +1388,21 @@
 .category-list-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* name input takes the first line with the controls; the swatches wrap onto
+   their own line underneath so the row never outgrows a phone screen */
+.category-list-item input[type='text'] {
+  min-width: 0;
+}
+
+.category-list-item .color-swatch-picker {
+  flex-basis: 100%;
+  padding-left: 28px;
 }
 
 .category-list-item input[type='text'] {
@@ -1402,12 +1416,13 @@
 
 .color-swatch-picker {
   display: flex;
-  gap: 4px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .color-swatch {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 2px solid transparent;
 }
@@ -1419,7 +1434,6 @@
 .category-add-row {
   display: flex;
   gap: 8px;
-  margin-top: 8px;
 }
 
 .category-add-row input {

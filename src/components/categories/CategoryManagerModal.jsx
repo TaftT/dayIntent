@@ -72,14 +72,6 @@ export function CategoryManagerModal({ initialTab = 'categories' }) {
         <p className="manager-hint">
           Use the arrows to set the order — it&apos;s the order they appear in everywhere you pick one.
         </p>
-        {list.map((entry, index) =>
-          isGroups ? (
-            <GroupListItem key={entry.id} group={entry} index={index} count={list.length} onMove={move} />
-          ) : (
-            <CategoryListItem key={entry.id} category={entry} index={index} count={list.length} onMove={move} />
-          )
-        )}
-        {list.length === 0 && <div className="empty-state">Nothing here yet.</div>}
         <div className="category-add-row">
           <input
             type="text"
@@ -92,6 +84,14 @@ export function CategoryManagerModal({ initialTab = 'categories' }) {
             Add
           </Button>
         </div>
+        {list.map((entry, index) =>
+          isGroups ? (
+            <GroupListItem key={entry.id} group={entry} index={index} count={list.length} onMove={move} />
+          ) : (
+            <CategoryListItem key={entry.id} category={entry} index={index} count={list.length} onMove={move} />
+          )
+        )}
+        {list.length === 0 && <div className="empty-state">Nothing here yet.</div>}
       </div>
     </Modal>
   )
