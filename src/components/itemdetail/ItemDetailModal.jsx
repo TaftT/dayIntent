@@ -307,7 +307,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
           placeholder="Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          autoFocus
+          autoFocus={isCreate}
         />
         {error && <div className="form-error">{error}</div>}
 
