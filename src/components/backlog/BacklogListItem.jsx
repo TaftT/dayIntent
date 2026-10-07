@@ -82,7 +82,7 @@ export function BacklogListItem({ row, rank, draggable, canSchedule }) {
           ref={setActivatorNodeRef}
           className="backlog-drag-handle"
           aria-label="Drag to reorder"
-          title="Drag to reorder or onto the calendar"
+          title="Drag to reorder"
           onClick={(e) => e.stopPropagation()}
           {...listeners}
           {...attributes}

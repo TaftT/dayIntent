@@ -1,10 +1,8 @@
 import { DndContext, DragOverlay, pointerWithin } from '@dnd-kit/core'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { TopBar } from '../layout/TopBar.jsx'
 import { BacklogFilters } from './BacklogFilters.jsx'
 import { BacklogList } from './BacklogList.jsx'
-import { MiniCalendarDropTarget } from './MiniCalendarDropTarget.jsx'
 import { Icon } from '../shared/Icon.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
@@ -12,11 +10,9 @@ import { usePlannerSensors } from '../../utils/dnd/dndContextConfig.js'
 import { useBacklogItems } from '../../hooks/useBacklogItems.js'
 
 export function BacklogPage() {
-  const scheduleItemOnDate = useEntityStore((s) => s.scheduleItemOnDate)
   const reorderItem = useEntityStore((s) => s.reorderItem)
   const openModal = useAppStore((s) => s.openModal)
   const sensors = usePlannerSensors()
-  const navigate = useNavigate()
   const [activeTitle, setActiveTitle] = useState(null)
   const filters = useAppStore((s) => s.backlogFilters)
   const { rows, counts } = useBacklogItems(filters)
@@ -30,16 +26,8 @@ export function BacklogPage() {
     const { active, over, delta, activatorEvent } = event
     if (!over) return
 
-    const date = over.data.current?.date
-    if (date) {
-      // Default to noon so the item lands on the grid at a sensible spot,
-      // then jump straight to that day so the user sees where it landed.
-      await scheduleItemOnDate(active.id, date, {})
-      navigate(`/day/${date}`)
-      return
-    }
-
-    // Dropped on another row: reorder. Dropping above/below the target uses
+    // Dropped on another row: reorder (scheduling is done from each row's
+    // calendar button, not by dragging). Dropping above/below the target uses
     // the real pointer position (start position + total movement), not the
     // dragged element's rect — the handle can be grabbed anywhere in the row,
     // so the rect has an arbitrary offset from the pointer.
@@ -69,7 +57,6 @@ export function BacklogPage() {
       >
         <div className="backlog-page-content">
           <BacklogList rows={rows} tab={filters.tab} />
-          <MiniCalendarDropTarget isDragging={Boolean(activeTitle)} />
         </div>
         {/* No drop animation: the default slides the chip back to the row's old
             position before the list reorders, which reads as a jump. */}
