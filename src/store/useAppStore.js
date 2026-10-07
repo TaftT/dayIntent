@@ -29,10 +29,8 @@ export const useAppStore = create((set) => ({
   setGroupDragDeltaY: (y) => set((s) => (s.groupDragDeltaY === y ? s : { groupDragDeltaY: y })),
 
   backlogFilters: {
-    status: 'unscheduled', // 'unscheduled' | 'scheduled' | 'all'
+    tab: 'todo', // 'todo' | 'scheduled' | 'recurring' | 'progress' | 'done'
     categoryId: null,
-    isRecurring: undefined,
-    hasNotes: false,
     searchText: '',
   },
   setBacklogFilters: (partial) =>

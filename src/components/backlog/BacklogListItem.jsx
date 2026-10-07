@@ -5,10 +5,19 @@ import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
+import { formatMinutesShort, formatShortDate, formatTimeLabel, isTodayStr } from '../../utils/dateUtils.js'
 
-export function BacklogListItem({ item }) {
+function whenLabel(instance) {
+  if (!instance) return null
+  const day = isTodayStr(instance.date) ? 'Today' : formatShortDate(instance.date)
+  return !instance.isAllDay && instance.time ? `${day} · ${formatTimeLabel(instance.time)}` : day
+}
+
+export function BacklogListItem({ row, rank, draggable }) {
+  const { item, percent, nextInstance } = row
   const category = useCategoryById(item.categoryId)
   const items = useEntityStore((s) => s.items)
+  const setItemComplete = useEntityStore((s) => s.setItemComplete)
   const openModal = useAppStore((s) => s.openModal)
   const signedIn = useAuthStore((s) => Boolean(s.user))
   const needsUnlock = useAuthStore((s) => s.needsUnlock)
@@ -19,25 +28,20 @@ export function BacklogListItem({ item }) {
   // itself and refuse to be picked up as a drag source.
   const isLocked = signedIn && needsUnlock && item.syncEnabled
 
-  // useSortable (not plain useDraggable/useDroppable) so the rest of the
-  // list gets @dnd-kit/sortable's built-in FLIP animation as rows make room
-  // for the one being dragged — that's what fixes the old "snaps back then
-  // switches" jump: rows now slide smoothly both during the drag and when
-  // settling into their final order after drop. It's still one droppable id
-  // (`item.id`) shared with the draggable role, which BacklogPage's
-  // onDragEnd relies on via `data.itemId` to decide reorder vs. nest.
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
-    id: item.id,
-    data: { item, itemId: item.id },
-    disabled: isLocked,
-  })
+  // useSortable so the rest of the list slides out of the way while dragging.
+  // The drag is started from the handle only (setActivatorNodeRef), so
+  // scrolling and tapping the row never begin a drag by accident.
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({
+      id: item.id,
+      data: { item, itemId: item.id },
+      disabled: isLocked || !draggable,
+    })
 
   // Deliberately not translating the actively-dragged row itself: it spans
   // the full list width, so moving it visually toward the calendar caused a
   // page-wide horizontal scrollbar. The DragOverlay (a small floating chip)
-  // provides the drag visual instead; this row just dims in place. Other
-  // rows (isDragging false) DO get their sortable transform, which is what
-  // makes them slide out of the way smoothly.
+  // provides the drag visual instead; this row just dims in place.
   const style = {
     transform: isDragging ? undefined : CSS.Transform.toString(transform),
     transition,
@@ -45,6 +49,8 @@ export function BacklogListItem({ item }) {
 
   const parent = item.parentIds.length > 0 ? items.find((i) => i.id === item.parentIds[0]) : null
   const childCount = item.childIds.length
+  const done = percent >= 100
+  const when = whenLabel(nextInstance)
 
   // Synced items are hidden while sync is locked (see useBacklogItems); this
   // is just a belt-and-braces guard for any other path that renders a row.
@@ -54,29 +60,54 @@ export function BacklogListItem({ item }) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`backlog-list-item ${parent ? 'backlog-item-is-child' : ''} ${isDragging ? 'dragging' : ''} ${isOver ? 'drop-target-active' : ''}`}
-      {...listeners}
-      {...attributes}
+      className={`backlog-list-item ${done ? 'is-done' : ''} ${isDragging ? 'dragging' : ''}`}
       onClick={() => openModal('itemDetail', { itemId: item.id })}
     >
-      {parent && <span className="backlog-child-connector">↳</span>}
-      <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
-      <span className="backlog-item-title">{item.title}</span>
-      {parent && <span className="badge backlog-parent-label" title="Parent task">of {parent.title}</span>}
-      {childCount > 0 && (
-        <span className="badge" title={`${childCount} subtask${childCount === 1 ? '' : 's'}`}>
-          {childCount} sub
+      {draggable && (
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          className="backlog-drag-handle"
+          aria-label="Drag to reorder"
+          title="Drag to reorder or onto the calendar"
+          onClick={(e) => e.stopPropagation()}
+          {...listeners}
+          {...attributes}
+        >
+          ⋮⋮
+        </button>
+      )}
+      {rank != null && <span className="backlog-rank">{rank}</span>}
+      <button
+        type="button"
+        className={`backlog-check ${done ? 'checked' : ''}`}
+        role="checkbox"
+        aria-checked={done}
+        aria-label={done ? 'Mark not done' : 'Mark done'}
+        onClick={(e) => {
+          e.stopPropagation()
+          setItemComplete(item.id, !done)
+        }}
+      >
+        {done ? '✓' : ''}
+      </button>
+      <div className="backlog-item-body">
+        <span className="backlog-item-title">{item.title}</span>
+        <span className="backlog-item-meta">
+          <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
+          {category && <span>{category.name}</span>}
+          <span>{item.durationMinutes != null ? formatMinutesShort(item.durationMinutes) : 'Reminder'}</span>
+          {when && <span className="backlog-when">{when}</span>}
+          {parent && <span title="Part of">↳ {parent.title}</span>}
+          {childCount > 0 && <span>{childCount} sub</span>}
         </span>
-      )}
-      {!item.isUnscheduled && <span className="badge" title="Already on the calendar">Scheduled</span>}
-      {item.recurrence && <span className="badge" title="Recurring">⟳</span>}
-      {signedIn && item.syncEnabled && <span className="badge" title="Synced to cloud">☁</span>}
-      {item.durationMinutes != null ? (
-        <span className="backlog-item-duration">{item.durationMinutes}m</span>
-      ) : (
-        <span className="badge">Reminder</span>
-      )}
-      <span className="backlog-item-percent">{item.percentComplete}%</span>
+        {percent > 0 && percent < 100 && (
+          <span className="backlog-progress" aria-label={`${percent}% complete`}>
+            <span className="backlog-progress-fill" style={{ width: `${percent}%` }} />
+          </span>
+        )}
+      </div>
+      {percent > 0 && percent < 100 && <span className="backlog-item-percent">{percent}%</span>}
     </div>
   )
 }

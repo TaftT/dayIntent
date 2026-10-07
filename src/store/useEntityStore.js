@@ -436,6 +436,33 @@ export const useEntityStore = create((set, get) => ({
   // ---- Backlog ordering ----------------------------------------------------
 
   /**
+   * Checks an item off (or back on) from the backlog list. A scheduled item's
+   * progress lives on its instance, so that's what gets completed; an
+   * unscheduled one has its own percent. Un-completing restores whatever the
+   * percent was before it was completed (0 if unknown).
+   */
+  setItemComplete: async (itemId, complete) => {
+    const item = await repo.getItem(itemId)
+    if (!item) return
+    let target = null
+    if (!item.isUnscheduled) {
+      const insts = (await repo.getInstancesForItem(itemId)).sort((a, b) => a.date.localeCompare(b.date))
+      target = insts.find((i) => !i.finalized) ?? insts[insts.length - 1] ?? null
+    }
+    const restore = (rec) => (rec.percentBeforeComplete != null && rec.percentBeforeComplete < 100 ? rec.percentBeforeComplete : 0)
+
+    if (target) {
+      await get().setInstancePercentComplete(target.id, complete ? 100 : restore(target))
+      return
+    }
+    const before = item.percentComplete ?? 0
+    await get().updateItem(itemId, {
+      percentComplete: complete ? 100 : restore(item),
+      percentBeforeComplete: complete ? (before < 100 ? before : item.percentBeforeComplete ?? null) : null,
+    })
+  },
+
+  /**
    * Moves draggedId to sit just before/after targetId in the shared backlog
    * order, then renumbers everyone sequentially. Renumbering the whole list
    * (rather than fractional-indexing between neighbors) is simplest and

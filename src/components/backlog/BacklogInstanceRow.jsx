@@ -3,19 +3,12 @@ import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { getDisplayStatus } from '../../data/rollover.js'
-import { formatShortDate, formatTimeLabel, isTodayStr } from '../../utils/dateUtils.js'
+import { formatShortDate, formatTimeLabel, formatMinutesShort, isTodayStr } from '../../utils/dateUtils.js'
 import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 
-const STATUS_LABEL = {
-  completed: '✓',
-  worked_on: '◐',
-  ghost: '○',
-  in_progress: '◐',
-  pending: '○',
-}
-
 /** One occurrence of a recurring item's upcoming series, completable on its own. */
-export function BacklogInstanceRow({ item, instance }) {
+export function BacklogInstanceRow({ row }) {
+  const { item, instance } = row
   const category = useCategoryById(item.categoryId)
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
   const openModal = useAppStore((s) => s.openModal)
@@ -23,8 +16,11 @@ export function BacklogInstanceRow({ item, instance }) {
   const needsUnlock = useAuthStore((s) => s.needsUnlock)
   const isLocked = signedIn && needsUnlock && item.syncEnabled
 
-  const status = getDisplayStatus(instance)
+  const done = getDisplayStatus(instance) === 'completed'
   const dateLabel = isTodayStr(instance.date) ? 'Today' : formatShortDate(instance.date)
+  const when =
+    !instance.isAllDay && instance.time ? `${dateLabel} · ${formatTimeLabel(instance.time)}` : dateLabel
+  const percent = instance.percentComplete
 
   const handleClick = () =>
     openModal('itemDetail', { itemId: item.id, instanceId: instance.id, date: instance.date, time: instance.time })
@@ -33,26 +29,35 @@ export function BacklogInstanceRow({ item, instance }) {
   if (isLocked) return null
 
   return (
-    <div className="backlog-list-item backlog-instance-row" onClick={handleClick}>
+    <div className={`backlog-list-item ${done ? 'is-done' : ''}`} onClick={handleClick}>
       <button
-        className="instance-complete-toggle-inline"
+        type="button"
+        className={`backlog-check ${done ? 'checked' : ''}`}
+        role="checkbox"
+        aria-checked={done}
+        aria-label="Mark this occurrence done"
+        disabled={done}
         onClick={(e) => {
           e.stopPropagation()
           markInstanceComplete(instance.id)
         }}
-        aria-label="Mark complete"
-        title="Mark complete"
       >
-        {STATUS_LABEL[status]}
+        {done ? '✓' : ''}
       </button>
-      <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
-      <span className="backlog-item-title">{item.title}</span>
-      <span className="badge" title="Recurring">⟳</span>
-      <span className="backlog-instance-date">
-        {dateLabel}
-        {!instance.isAllDay && instance.time ? ` · ${formatTimeLabel(instance.time)}` : ''}
-      </span>
-      <span className="backlog-item-percent">{instance.percentComplete}%</span>
+      <div className="backlog-item-body">
+        <span className="backlog-item-title">{item.title}</span>
+        <span className="backlog-item-meta">
+          <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
+          {category && <span>{category.name}</span>}
+          <span>{item.durationMinutes != null ? formatMinutesShort(item.durationMinutes) : 'Reminder'}</span>
+          <span className="backlog-when">⟳ Next: {when}</span>
+        </span>
+        {percent > 0 && percent < 100 && (
+          <span className="backlog-progress" aria-label={`${percent}% complete`}>
+            <span className="backlog-progress-fill" style={{ width: `${percent}%` }} />
+          </span>
+        )}
+      </div>
     </div>
   )
 }
