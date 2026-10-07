@@ -36,7 +36,13 @@ export function BacklogList({ rows: allRows, tab }) {
             row.type === 'instance' ? (
               <BacklogInstanceRow key={row.instance.id} row={row} />
             ) : (
-              <BacklogListItem key={row.item.id} row={row} rank={draggable ? index + 1 : null} draggable={draggable} />
+              <BacklogListItem
+                key={row.item.id}
+                row={row}
+                rank={draggable ? index + 1 : null}
+                draggable={draggable}
+                canSchedule={tab === 'todo' || tab === 'scheduled' || tab === 'progress'}
+              />
             )
 
           if (row.section && row.section !== lastSection) {
