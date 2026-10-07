@@ -2398,3 +2398,7 @@
     box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent;
   }
 }
+
+.backlog-marked-done {
+  font-weight: 600;
+}

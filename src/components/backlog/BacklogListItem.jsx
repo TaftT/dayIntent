@@ -53,13 +53,16 @@ export function BacklogListItem({ row, rank, draggable }) {
   const parent = item.parentIds.length > 0 ? items.find((i) => i.id === item.parentIds[0]) : null
   const childCount = item.childIds.length
   const done = percent >= 100
-  // Finished tasks show the day they were completed instead of an upcoming time.
+  // Finished tasks show the day they were completed on the calendar. One
+  // that was just checked off from the backlog has no known date, so it says
+  // so instead of guessing — and has no day to link to.
   const linkDate = done ? row.completedDate : nextInstance?.date
   const when = done
     ? row.completedDate
       ? `✓ Done ${isTodayStr(row.completedDate) ? 'today' : formatShortDate(row.completedDate)}`
       : null
     : whenLabel(nextInstance)
+  const markedFromBacklog = done && !row.completedDate
 
   // Synced items are hidden while sync is locked (see useBacklogItems); this
   // is just a belt-and-braces guard for any other path that renders a row.
@@ -106,6 +109,7 @@ export function BacklogListItem({ row, rank, draggable }) {
           <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
           {category && <span>{category.name}</span>}
           <span>{item.durationMinutes != null ? formatMinutesShort(item.durationMinutes) : 'Reminder'}</span>
+          {markedFromBacklog && <span className="backlog-marked-done">✓ Marked done from backlog</span>}
           {when && (
             <button
               type="button"

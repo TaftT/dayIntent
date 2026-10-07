@@ -67,14 +67,16 @@ function classify(items, allInstances, today) {
       else tabs.add('scheduled')
       if (percent > 0) tabs.add('progress')
     }
-    // The day it was finished: the occurrence it was completed on, or — for
-    // a task that never went on the calendar — the day it was last updated.
+    // The day it was finished — only known when it was completed on a
+    // calendar occurrence. A task ticked off straight from the backlog has no
+    // trustworthy date (it may have been done long ago and just cleared), so
+    // it gets none; sortDate (last update) is used purely for ordering.
     const completedInstance = insts
       .filter((i) => (i.percentComplete ?? 0) >= 100)
       .sort((a, b) => b.date.localeCompare(a.date))[0]
-    const completedDate =
-      completedInstance?.date ?? (item.updatedAt ? toDateStr(new Date(item.updatedAt)) : null)
-    return { item, nextInstance, percent, tabs, completedDate }
+    const completedDate = completedInstance?.date ?? null
+    const sortDate = completedDate ?? (item.updatedAt ? toDateStr(new Date(item.updatedAt)) : null)
+    return { item, nextInstance, percent, tabs, completedDate, sortDate }
   })
 }
 
@@ -124,6 +126,7 @@ export function useBacklogItems(filters = {}) {
       nextInstance: c.nextInstance,
       percent: c.percent,
       completedDate: c.completedDate,
+      sortDate: c.sortDate,
       section: tab === 'scheduled' && c.nextInstance ? dateSection(c.nextInstance.date, today) : null,
     }))
 
@@ -136,7 +139,7 @@ export function useBacklogItems(filters = {}) {
     } else if (tab === 'done') {
       rows.sort(
         (a, b) =>
-          (b.completedDate ?? '').localeCompare(a.completedDate ?? '') ||
+          (b.sortDate ?? '').localeCompare(a.sortDate ?? '') ||
           (b.item.updatedAt ?? '').localeCompare(a.item.updatedAt ?? '')
       )
     } else {
