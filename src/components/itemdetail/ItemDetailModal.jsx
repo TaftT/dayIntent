@@ -74,7 +74,17 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   const [error, setError] = useState('')
   const [saveMenuOpen, setSaveMenuOpen] = useState(false)
   // Notes, recurrence, habit, sync and links stay tucked away until asked for.
-  const [showMore, setShowMore] = useState(false)
+  // Starts open when anything inside has already been set, so existing values
+  // are never hidden; otherwise stays collapsed.
+  const [showMore, setShowMore] = useState(
+    () =>
+      Boolean(recurrence) ||
+      isHabit ||
+      (!isCreate && percentComplete > 0) ||
+      notes.replace(/<[^>]*>|&nbsp;/g, '').trim() !== '' ||
+      Boolean(existingItem && (existingItem.parentIds?.length || existingItem.childIds?.length)) ||
+      (!isCreate && syncEnabled !== signedIn)
+  )
 
   // Deleting one occurrence of a recurring series is ambiguous — "delete"
   // could mean just this day or the whole series — so a recurring item
