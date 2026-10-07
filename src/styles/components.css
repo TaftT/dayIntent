@@ -2346,3 +2346,24 @@
   height: 100%;
   background: var(--color-primary);
 }
+
+/* Phones: five tabs share the row width (label over count) instead of scrolling sideways */
+@media (max-width: 600px) {
+  .backlog-tabs {
+    overflow-x: hidden;
+    gap: 0;
+  }
+
+  .backlog-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 3px;
+    padding: 8px 2px;
+    font-size: 0.76rem;
+    line-height: 1.15;
+    white-space: normal;
+    text-align: center;
+  }
+}
