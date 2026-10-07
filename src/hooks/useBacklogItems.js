@@ -17,6 +17,9 @@ export const BACKLOG_TABS = [
   { id: 'done', label: 'Done' },
 ]
 
+// Category filter value meaning "only tasks with no category".
+export const UNCATEGORIZED_FILTER = '__none__'
+
 const byOrder = (a, b) => (a.item.order ?? 0) - (b.item.order ?? 0)
 const nextKey = (inst) => `${inst.date} ${inst.time ?? '00:00'}`
 
@@ -113,7 +116,11 @@ export function useBacklogItems(filters = {}) {
     const q = searchText.trim().toLowerCase()
     const matching = classified.filter((c) => {
       if (!c.tabs.has(tab)) return false
-      if (categoryId && c.item.categoryId !== categoryId) return false
+      if (categoryId === UNCATEGORIZED_FILTER) {
+        if (c.item.categoryId) return false
+      } else if (categoryId && c.item.categoryId !== categoryId) {
+        return false
+      }
       if (
         q &&
         !(
