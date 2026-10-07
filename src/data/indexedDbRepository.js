@@ -80,6 +80,7 @@ export async function saveItem(item, { preserveTimestamp = false } = {}) {
     notes: '',
     categoryId: null,
     percentComplete: 0,
+    group: null,
     parentIds: [],
     childIds: [],
     recurrence: null,

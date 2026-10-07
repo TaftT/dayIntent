@@ -16,6 +16,7 @@
  * @property {string} notes
  * @property {string|null} categoryId
  * @property {number} percentComplete - 0-100
+ * @property {string|null} group - backlog group name; a group exists only while some item carries its name, so it syncs with the item
  * @property {string[]} parentIds
  * @property {string[]} childIds
  * @property {RecurrenceRule|null} recurrence

@@ -3,6 +3,7 @@ import * as repo from '../data/index.js'
 import { useAuthStore } from './useAuthStore.js'
 import { runRollover } from '../data/rollover.js'
 import { regenerateFutureInstances } from '../data/recurrence.js'
+import { reorderWithinGroup } from '../utils/groupOrder.js'
 import { todayStr, addDaysStr, timeStrToMinutes } from '../utils/dateUtils.js'
 
 // True once an occurrence is entirely in the past: an earlier date, or today
@@ -498,6 +499,48 @@ export const useEntityStore = create((set, get) => ({
         await repo.saveItem({ id: rest[i].id, order: i })
       }
     }
+    await get().refreshItems()
+  },
+
+  /**
+   * Reorders one group's tasks among themselves (see utils/groupOrder.js),
+   * leaving every other task's priority position untouched. `groupIds` are the
+   * group's currently visible task ids.
+   */
+  reorderInGroup: async (draggedId, targetId, position, groupIds) => {
+    const orderedItems = get().items.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    const orderedIds = orderedItems.map((i) => i.id)
+    const next = reorderWithinGroup(orderedIds, groupIds, draggedId, targetId, position)
+    if (next === orderedIds) return
+
+    const newOrder = new Map(next.map((id, idx) => [id, idx]))
+    set((s) => ({
+      items: s.items.map((i) => (newOrder.has(i.id) ? { ...i, order: newOrder.get(i.id) } : i)),
+    }))
+    for (const [id, idx] of newOrder) {
+      const current = orderedItems.find((i) => i.id === id)
+      if (current && current.order !== idx) await repo.saveItem({ id, order: idx })
+    }
+    await get().refreshItems()
+  },
+
+  // ---- Backlog groups --------------------------------------------------
+  // A group is just a name carried by its tasks (item.group): it exists while
+  // any task has it, needs no record of its own, and syncs with the items.
+
+  /** Puts the given items in a group (or removes them from any with null/''). */
+  setItemsGroup: async (itemIds, groupName) => {
+    const name = groupName?.trim() || null
+    for (const id of itemIds) await repo.saveItem({ id, group: name })
+    await get().refreshItems()
+  },
+
+  /** Renames a group everywhere; renaming onto an existing name merges them. */
+  renameGroup: async (oldName, newName) => {
+    const name = newName?.trim()
+    if (!name || name === oldName) return
+    const members = get().items.filter((i) => i.group === oldName)
+    for (const item of members) await repo.saveItem({ id: item.id, group: name })
     await get().refreshItems()
   },
 

@@ -2,7 +2,7 @@ import { useCategories } from '../../hooks/useCategories.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { BACKLOG_TABS } from '../../hooks/useBacklogItems.js'
 
-export function BacklogFilters({ counts }) {
+export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
   const categories = useCategories()
   const filters = useAppStore((s) => s.backlogFilters)
   const setBacklogFilters = useAppStore((s) => s.setBacklogFilters)
@@ -44,6 +44,33 @@ export function BacklogFilters({ counts }) {
           ))}
         </select>
       </div>
+      {filters.tab === 'todo' && (
+        <div className="backlog-view-row">
+          <div className="backlog-view-toggle" role="group" aria-label="View">
+            {[
+              ['list', 'List'],
+              ['grouped', 'Grouped'],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={filters.view === id ? 'active' : ''}
+                aria-pressed={filters.view === id}
+                onClick={() => setBacklogFilters({ view: id })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className={`btn btn-subtle backlog-select-btn ${selecting ? 'active' : ''}`}
+            onClick={onToggleSelecting}
+          >
+            {selecting ? 'Done selecting' : 'Select'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -71,6 +71,9 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   // hidden while signed out); an item created offline stays local-only and
   // won't be pushed to the cloud on a later sign-in.
   const [syncEnabled, setSyncEnabled] = useState(existingItem?.syncEnabled ?? signedIn)
+  const [group, setGroup] = useState(existingItem?.group ?? '')
+  const allItems = useEntityStore((s) => s.items)
+  const groupNames = Array.from(new Set(allItems.map((i) => i.group).filter(Boolean))).sort((a, b) => a.localeCompare(b))
   const [error, setError] = useState('')
   const [saveMenuOpen, setSaveMenuOpen] = useState(false)
   // Notes, recurrence, habit, sync and links stay tucked away until asked for.
@@ -79,6 +82,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   const [showMore, setShowMore] = useState(
     () =>
       Boolean(recurrence) ||
+      Boolean(existingItem?.group) ||
       isHabit ||
       (!isCreate && percentComplete > 0) ||
       notes.replace(/<[^>]*>|&nbsp;/g, '').trim() !== '' ||
@@ -148,6 +152,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
         : null,
       isHabit: recurrence ? isHabit : false,
       syncEnabled,
+      group: group.trim() || null,
     }
 
     try {
@@ -390,6 +395,22 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
           {!isCreate && (
             <PercentCompleteSlider percentComplete={percentComplete} onChange={setPercentComplete} />
           )}
+
+          <label className="group-field">
+            <span>Group</span>
+            <input
+              type="text"
+              list="backlog-group-names"
+              value={group}
+              onChange={(e) => setGroup(e.target.value)}
+              placeholder="No group"
+            />
+            <datalist id="backlog-group-names">
+              {groupNames.map((g) => (
+                <option key={g} value={g} />
+              ))}
+            </datalist>
+          </label>
 
           <RichTextEditor value={notes} onChange={setNotes} className="notes-editor" placeholder="Notes" />
 

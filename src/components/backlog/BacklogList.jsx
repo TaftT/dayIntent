@@ -3,6 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { BacklogListItem } from './BacklogListItem.jsx'
 import { BacklogInstanceRow } from './BacklogInstanceRow.jsx'
 import { BacklogQuickAdd } from './BacklogQuickAdd.jsx'
+import { BacklogGroupHeader } from './BacklogGroupHeader.jsx'
 
 const EMPTY_TEXT = {
   todo: 'Nothing to do — add a task above.',
@@ -12,50 +13,106 @@ const EMPTY_TEXT = {
   done: 'Nothing completed yet.',
 }
 
-// Only the To do tab is a priority list, so only there can rows be dragged to
-// reorder (or onto the calendar to schedule).
 // The Done tab can grow without bound, so it only renders the most recent
 // completions and loads older ones on request. Nothing is deleted.
 const DONE_PAGE_SIZE = 25
 
-export function BacklogList({ rows: allRows, tab }) {
+/**
+ * Splits the To do rows into group sections. Rows arrive in global priority
+ * order, so each section's first row is its most urgent task and sections
+ * come out ordered by that — a group whose top task is #1 leads the list.
+ * Each row keeps its global rank so the interleaving stays visible.
+ */
+function buildGroupSections(rows) {
+  const sections = new Map()
+  rows.forEach((row, index) => {
+    const key = row.item.group ?? null
+    if (!sections.has(key)) sections.set(key, [])
+    sections.get(key).push({ row, rank: index + 1 })
+  })
+  return Array.from(sections, ([group, entries]) => ({ group, entries }))
+}
+
+export function BacklogList({ rows: allRows, tab, view, groupStats, selection }) {
   const [doneLimit, setDoneLimit] = useState(DONE_PAGE_SIZE)
-  const draggable = tab === 'todo'
+  const [collapsed, setCollapsed] = useState(() => new Set())
+  // Only the To do tab is a priority list, so only there can rows be dragged.
+  const draggable = tab === 'todo' && !selection.active
+  const grouped = tab === 'todo' && view === 'grouped'
   const rows = tab === 'done' ? allRows.slice(0, doneLimit) : allRows
   const hiddenDone = tab === 'done' ? allRows.length - rows.length : 0
   const sortableIds = rows.filter((row) => row.type === 'item').map((row) => row.item.id)
+  const canSchedule = tab === 'todo' || tab === 'scheduled' || tab === 'progress'
   let lastSection = null
+
+  const toggleCollapsed = (group) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(group)) next.delete(group)
+      else next.add(group)
+      return next
+    })
+
+  const renderItem = (row, rank) => (
+    <BacklogListItem
+      key={row.item.id}
+      row={row}
+      rank={tab === 'todo' ? rank : null}
+      draggable={draggable}
+      canSchedule={canSchedule}
+      selection={selection}
+    />
+  )
+
+  let body
+  if (grouped) {
+    const sections = buildGroupSections(rows)
+    const hasNamedGroups = sections.some((s) => s.group)
+    body = sections.map(({ group, entries }) => {
+      const isCollapsed = group !== null && collapsed.has(group)
+      return (
+        <Fragment key={group ?? '__none__'}>
+          {(group || hasNamedGroups) && (
+            <BacklogGroupHeader
+              group={group}
+              stats={group ? groupStats[group] : null}
+              shown={entries.length}
+              collapsed={isCollapsed}
+              onToggle={group ? () => toggleCollapsed(group) : null}
+            />
+          )}
+          {!isCollapsed && entries.map(({ row, rank }) => renderItem(row, rank))}
+        </Fragment>
+      )
+    })
+  } else {
+    body = rows.map((row, index) => {
+      const rowEl =
+        row.type === 'instance' ? (
+          <BacklogInstanceRow key={row.instance.id} row={row} />
+        ) : (
+          renderItem(row, index + 1)
+        )
+
+      if (row.section && row.section !== lastSection) {
+        lastSection = row.section
+        return (
+          <Fragment key={`section-${row.section}`}>
+            <div className="backlog-section-header">{row.section}</div>
+            {rowEl}
+          </Fragment>
+        )
+      }
+      return rowEl
+    })
+  }
 
   return (
     <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
       <div className="backlog-list">
-        {tab === 'todo' && <BacklogQuickAdd />}
+        {tab === 'todo' && !selection.active && <BacklogQuickAdd />}
         {rows.length === 0 && <div className="empty-state">{EMPTY_TEXT[tab]}</div>}
-        {rows.map((row, index) => {
-          const rowEl =
-            row.type === 'instance' ? (
-              <BacklogInstanceRow key={row.instance.id} row={row} />
-            ) : (
-              <BacklogListItem
-                key={row.item.id}
-                row={row}
-                rank={draggable ? index + 1 : null}
-                draggable={draggable}
-                canSchedule={tab === 'todo' || tab === 'scheduled' || tab === 'progress'}
-              />
-            )
-
-          if (row.section && row.section !== lastSection) {
-            lastSection = row.section
-            return (
-              <Fragment key={`section-${row.section}`}>
-                <div className="backlog-section-header">{row.section}</div>
-                {rowEl}
-              </Fragment>
-            )
-          }
-          return rowEl
-        })}
+        {body}
         {hiddenDone > 0 && (
           <button
             type="button"

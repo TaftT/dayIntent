@@ -15,7 +15,7 @@ function whenLabel(instance) {
   return !instance.isAllDay && instance.time ? `${day} · ${formatTimeLabel(instance.time)}` : day
 }
 
-export function BacklogListItem({ row, rank, draggable, canSchedule }) {
+export function BacklogListItem({ row, rank, draggable, canSchedule, selection }) {
   const { item, percent, nextInstance } = row
   const category = useCategoryById(item.categoryId)
   const navigate = useNavigate()
@@ -54,6 +54,8 @@ export function BacklogListItem({ row, rank, draggable, canSchedule }) {
   const parent = item.parentIds.length > 0 ? items.find((i) => i.id === item.parentIds[0]) : null
   const childCount = item.childIds.length
   const done = percent >= 100
+  const selecting = Boolean(selection?.active)
+  const selected = selecting && selection.ids.includes(item.id)
   // Finished tasks show the day they were completed on the calendar. One
   // that was just checked off from the backlog has no known date, so it says
   // so instead of guessing — and has no day to link to.
@@ -73,10 +75,10 @@ export function BacklogListItem({ row, rank, draggable, canSchedule }) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`backlog-list-item ${done ? 'is-done' : ''} ${isDragging ? 'dragging' : ''}`}
-      onClick={() => openModal('itemDetail', { itemId: item.id })}
+      className={`backlog-list-item ${done ? 'is-done' : ''} ${isDragging ? 'dragging' : ''} ${selected ? 'is-selected' : ''}`}
+      onClick={() => (selecting ? selection.toggle(item.id) : openModal('itemDetail', { itemId: item.id }))}
     >
-      {draggable && (
+      {draggable && !selecting && (
         <button
           type="button"
           ref={setActivatorNodeRef}
@@ -91,6 +93,12 @@ export function BacklogListItem({ row, rank, draggable, canSchedule }) {
         </button>
       )}
       {rank != null && <span className="backlog-rank">{rank}</span>}
+      {selecting && (
+        <span className={`backlog-select-dot ${selected ? 'checked' : ''}`} aria-hidden="true">
+          {selected ? '✓' : ''}
+        </span>
+      )}
+      {!selecting && (
       <button
         type="button"
         className={`backlog-check ${done ? 'checked' : ''}`}
@@ -104,6 +112,7 @@ export function BacklogListItem({ row, rank, draggable, canSchedule }) {
       >
         {done ? '✓' : ''}
       </button>
+      )}
       <div className="backlog-item-body">
         <span className="backlog-item-title">{item.title}</span>
         <span className="backlog-item-meta">
@@ -125,6 +134,7 @@ export function BacklogListItem({ row, rank, draggable, canSchedule }) {
               {when}
             </button>
           )}
+          {item.group && <span className="backlog-group-chip" title="Group">{item.group}</span>}
           {parent && <span title="Part of">↳ {parent.title}</span>}
           {childCount > 0 && <span>{childCount} sub</span>}
         </span>
@@ -135,7 +145,7 @@ export function BacklogListItem({ row, rank, draggable, canSchedule }) {
         )}
       </div>
       {percent > 0 && percent < 100 && <span className="backlog-item-percent">{percent}%</span>}
-      {canSchedule && !done && <ScheduleMenu item={item} instanceId={nextInstance?.id} />}
+      {canSchedule && !done && !selecting && <ScheduleMenu item={item} instanceId={nextInstance?.id} />}
     </div>
   )
 }

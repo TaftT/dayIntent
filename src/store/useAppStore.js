@@ -41,6 +41,7 @@ export const useAppStore = create((set) => ({
 
   backlogFilters: {
     tab: 'todo', // 'todo' | 'scheduled' | 'recurring' | 'progress' | 'done'
+    view: 'list', // To do tab only: 'list' (flat, by priority) | 'grouped'
     categoryId: null,
     searchText: '',
   },

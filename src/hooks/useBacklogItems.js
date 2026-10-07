@@ -112,7 +112,14 @@ export function useBacklogItems(filters = {}) {
     const matching = classified.filter((c) => {
       if (!c.tabs.has(tab)) return false
       if (categoryId && c.item.categoryId !== categoryId) return false
-      if (q && !(c.item.title.toLowerCase().includes(q) || (c.item.notes ?? '').toLowerCase().includes(q))) {
+      if (
+        q &&
+        !(
+          c.item.title.toLowerCase().includes(q) ||
+          (c.item.notes ?? '').toLowerCase().includes(q) ||
+          (c.item.group ?? '').toLowerCase().includes(q)
+        )
+      ) {
         return false
       }
       return true
@@ -146,6 +153,17 @@ export function useBacklogItems(filters = {}) {
       rows.sort(byOrder)
     }
 
-    return { rows, counts }
+    // Per-group progress for the grouped view's headers, over every task in
+    // the group (whatever tab it's on), not just the visible ones.
+    const groupStats = {}
+    for (const c of classified) {
+      const g = c.item.group
+      if (!g || c.item.recurrence) continue
+      groupStats[g] ??= { total: 0, done: 0 }
+      groupStats[g].total += 1
+      if (c.percent >= 100) groupStats[g].done += 1
+    }
+
+    return { rows, counts, groupStats }
   }, [items, allInstances, hideSynced, tab, categoryId, searchText])
 }
