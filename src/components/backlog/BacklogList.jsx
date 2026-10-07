@@ -18,10 +18,10 @@ const EMPTY_TEXT = {
 const DONE_PAGE_SIZE = 25
 
 /**
- * Splits the To do rows into group sections. Rows arrive in global priority
- * order, so each section's first row is its most urgent task and sections
- * come out ordered by that — a group whose top task is #1 leads the list.
- * Each row keeps its global rank so the interleaving stays visible.
+ * Splits the To do rows into group sections: named groups first, A→Z, then
+ * the ungrouped tasks. Rows arrive in global priority order, so tasks stay in
+ * priority order inside each section, and each keeps its global rank so the
+ * interleaving across groups stays visible.
  */
 function buildGroupSections(rows) {
   const sections = new Map()
@@ -30,7 +30,11 @@ function buildGroupSections(rows) {
     if (!sections.has(key)) sections.set(key, [])
     sections.get(key).push({ row, rank: index + 1 })
   })
-  return Array.from(sections, ([group, entries]) => ({ group, entries }))
+  return Array.from(sections, ([group, entries]) => ({ group, entries })).sort((a, b) => {
+    if (a.group === null) return 1
+    if (b.group === null) return -1
+    return a.group.localeCompare(b.group, undefined, { sensitivity: 'base' })
+  })
 }
 
 export function BacklogList({ rows: allRows, tab, view, groupStats, selection }) {
