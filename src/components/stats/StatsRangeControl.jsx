@@ -59,7 +59,7 @@ export function StatsRangeControl({ from, to, onChange }) {
             type="date"
             value={to}
             min={from}
-            max={week.to > todayStr() ? week.to : todayStr()}
+            max={todayStr()}
             onChange={(e) => onChange({ from, to: e.target.value })}
           />
         </label>
