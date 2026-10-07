@@ -314,7 +314,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
         />
         {error && <div className="form-error">{error}</div>}
 
-        <CategoryPicker categoryId={categoryId} onChange={setCategoryId} />
+        <CategoryPicker categoryId={categoryId} onChange={setCategoryId} syncedOnly={signedIn && syncEnabled} />
 
         <div className="scheduled-info-row">
           {date && (

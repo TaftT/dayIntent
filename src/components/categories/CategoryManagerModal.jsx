@@ -4,6 +4,8 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { Modal } from '../shared/Modal.jsx'
 import { Button } from '../shared/Button.jsx'
+import { ToggleButton } from '../shared/ToggleButton.jsx'
+import { useAuthStore } from '../../store/useAuthStore.js'
 import { CategoryListItem } from './CategoryListItem.jsx'
 import { GroupListItem } from './GroupListItem.jsx'
 import { usePlannerSensors } from '../../utils/dnd/dndContextConfig.js'
@@ -24,6 +26,9 @@ export function CategoryManagerModal({ initialTab = 'categories' }) {
   const closeModal = useAppStore((s) => s.closeModal)
   const [tab, setTab] = useState(initialTab)
   const [newName, setNewName] = useState('')
+  const signedIn = useAuthStore((s) => Boolean(s.user))
+  // New categories sync by default when signed in; switch off to keep one on this device only.
+  const [newSynced, setNewSynced] = useState(true)
   const sensors = usePlannerSensors()
 
   const isGroups = tab === 'groups'
@@ -36,7 +41,7 @@ export function CategoryManagerModal({ initialTab = 'categories' }) {
       await createGroup(name)
     } else {
       const color = DEFAULT_COLOR_SWATCHES[categories.length % DEFAULT_COLOR_SWATCHES.length]
-      await saveCategory({ name, color })
+      await saveCategory({ name, color, syncEnabled: signedIn && newSynced })
     }
     setNewName('')
   }
@@ -86,6 +91,18 @@ export function CategoryManagerModal({ initialTab = 'categories' }) {
             Add
           </Button>
         </div>
+        {signedIn && !isGroups && (
+          <div className="category-sync-choice">
+            <ToggleButton pressed={newSynced} onChange={setNewSynced}>
+              {newSynced ? '☁ Sync to cloud' : 'This device only'}
+            </ToggleButton>
+            <span className="manager-hint">
+              {newSynced
+                ? 'Shows up on all your signed-in devices.'
+                : 'Stays on this device; tasks that sync can’t use it.'}
+            </span>
+          </div>
+        )}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
