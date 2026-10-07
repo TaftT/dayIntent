@@ -52,7 +52,13 @@ export function BacklogListItem({ row, rank, draggable }) {
   const parent = item.parentIds.length > 0 ? items.find((i) => i.id === item.parentIds[0]) : null
   const childCount = item.childIds.length
   const done = percent >= 100
-  const when = whenLabel(nextInstance)
+  // Finished tasks show the day they were completed instead of an upcoming time.
+  const linkDate = done ? row.completedDate : nextInstance?.date
+  const when = done
+    ? row.completedDate
+      ? `✓ Done ${isTodayStr(row.completedDate) ? 'today' : formatShortDate(row.completedDate)}`
+      : null
+    : whenLabel(nextInstance)
 
   // Synced items are hidden while sync is locked (see useBacklogItems); this
   // is just a belt-and-braces guard for any other path that renders a row.
@@ -106,7 +112,7 @@ export function BacklogListItem({ row, rank, draggable }) {
               title="Open this day"
               onClick={(e) => {
                 e.stopPropagation()
-                navigate(`/day/${nextInstance.date}`)
+                navigate(`/day/${linkDate}`)
               }}
             >
               {when}

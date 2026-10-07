@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { useEntityStore } from '../store/useEntityStore.js'
 import { useAuthStore } from '../store/useAuthStore.js'
-import { todayStr, addDaysStr } from '../utils/dateUtils.js'
+import { todayStr, addDaysStr, toDateStr } from '../utils/dateUtils.js'
 
 // The backlog is split into distinct views instead of one mixed list:
 //   todo       unscheduled, not done — in priority order (top = most important)
@@ -67,7 +67,14 @@ function classify(items, allInstances, today) {
       else tabs.add('scheduled')
       if (percent > 0) tabs.add('progress')
     }
-    return { item, nextInstance, percent, tabs }
+    // The day it was finished: the occurrence it was completed on, or — for
+    // a task that never went on the calendar — the day it was last updated.
+    const completedInstance = insts
+      .filter((i) => (i.percentComplete ?? 0) >= 100)
+      .sort((a, b) => b.date.localeCompare(a.date))[0]
+    const completedDate =
+      completedInstance?.date ?? (item.updatedAt ? toDateStr(new Date(item.updatedAt)) : null)
+    return { item, nextInstance, percent, tabs, completedDate }
   })
 }
 
@@ -116,6 +123,7 @@ export function useBacklogItems(filters = {}) {
       instance: c.nextInstance,
       nextInstance: c.nextInstance,
       percent: c.percent,
+      completedDate: c.completedDate,
       section: tab === 'scheduled' && c.nextInstance ? dateSection(c.nextInstance.date, today) : null,
     }))
 
@@ -126,7 +134,11 @@ export function useBacklogItems(filters = {}) {
           : byOrder(a, b)
       )
     } else if (tab === 'done') {
-      rows.sort((a, b) => (b.item.updatedAt ?? '').localeCompare(a.item.updatedAt ?? ''))
+      rows.sort(
+        (a, b) =>
+          (b.completedDate ?? '').localeCompare(a.completedDate ?? '') ||
+          (b.item.updatedAt ?? '').localeCompare(a.item.updatedAt ?? '')
+      )
     } else {
       rows.sort(byOrder)
     }
