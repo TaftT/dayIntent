@@ -18,6 +18,7 @@ export function BacklogListItem({ row, rank, draggable }) {
   const { item, percent, nextInstance } = row
   const category = useCategoryById(item.categoryId)
   const navigate = useNavigate()
+  const flashItem = useAppStore((s) => s.flashItem)
   const items = useEntityStore((s) => s.items)
   const setItemComplete = useEntityStore((s) => s.setItemComplete)
   const openModal = useAppStore((s) => s.openModal)
@@ -112,6 +113,7 @@ export function BacklogListItem({ row, rank, draggable }) {
               title="Open this day"
               onClick={(e) => {
                 e.stopPropagation()
+                flashItem(item.id)
                 navigate(`/day/${linkDate}`)
               }}
             >

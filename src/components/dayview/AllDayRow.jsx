@@ -20,6 +20,7 @@ function AllDayChip({ instance, span }) {
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
   const openModal = useAppStore((s) => s.openModal)
   const hideSynced = useAuthStore((s) => Boolean(s.user) && s.needsUnlock)
+  const isHighlighted = useAppStore((s) => s.highlightItemId === instance.itemId)
   if (!item) return null
   if (hideSynced && item.syncEnabled) return null // hidden while cloud sync is locked
 
@@ -28,7 +29,8 @@ function AllDayChip({ instance, span }) {
 
   return (
     <div
-      className={`all-day-chip status-${status}`}
+      data-item-id={instance.itemId}
+      className={`all-day-chip status-${status}${isHighlighted ? ' highlight-flash' : ''}`}
       style={{ background: color, color: contrastTextColor(color) }}
       onClick={() =>
         openModal('itemDetail', { itemId: item.id, instanceId: instance.id, date: instance.date })

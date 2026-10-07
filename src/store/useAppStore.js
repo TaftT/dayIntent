@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { todayStr } from '../utils/dateUtils.js'
 
+let highlightTimer = null
+
 export const useAppStore = create((set) => ({
   currentDate: todayStr(),
   setCurrentDate: (date) => set({ currentDate: date }),
@@ -27,6 +29,15 @@ export const useAppStore = create((set) => ({
   // dragged, so the other selected blocks can follow it in real time.
   groupDragDeltaY: 0,
   setGroupDragDeltaY: (y) => set((s) => (s.groupDragDeltaY === y ? s : { groupDragDeltaY: y })),
+
+  // Briefly highlights one item's block on the day view — set when jumping
+  // there from the backlog so the user can spot what they came for.
+  highlightItemId: null,
+  flashItem: (itemId) => {
+    clearTimeout(highlightTimer)
+    set({ highlightItemId: itemId })
+    highlightTimer = setTimeout(() => set({ highlightItemId: null }), 3000)
+  },
 
   backlogFilters: {
     tab: 'todo', // 'todo' | 'scheduled' | 'recurring' | 'progress' | 'done'

@@ -12,6 +12,7 @@ export function BacklogInstanceRow({ row }) {
   const { item, instance } = row
   const category = useCategoryById(item.categoryId)
   const navigate = useNavigate()
+  const flashItem = useAppStore((s) => s.flashItem)
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
   const openModal = useAppStore((s) => s.openModal)
   const signedIn = useAuthStore((s) => Boolean(s.user))
@@ -58,6 +59,7 @@ export function BacklogInstanceRow({ row }) {
             title="Open this day"
             onClick={(e) => {
               e.stopPropagation()
+              flashItem(item.id)
               navigate(`/day/${instance.date}`)
             }}
           >

@@ -87,6 +87,25 @@ export function DayView() {
     }
   }, [])
 
+  // Arriving from the backlog with an item to spot: once its block has
+  // rendered (instances load asynchronously, and the mount effect above
+  // recenters on noon), scroll it into view. Gives up after ~1.5s.
+  const highlightItemId = useAppStore((s) => s.highlightItemId)
+  useEffect(() => {
+    if (!highlightItemId) return
+    let tries = 0
+    const timer = setInterval(() => {
+      const el = document.querySelector(`[data-item-id="${highlightItemId}"]`)
+      if (el) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+        clearInterval(timer)
+      } else if (++tries > 15) {
+        clearInterval(timer)
+      }
+    }, 100)
+    return () => clearInterval(timer)
+  }, [highlightItemId])
+
   const isGroupDrag = (event) => {
     const dragged = event.active.data.current?.instance
     return Boolean(
