@@ -4,7 +4,8 @@ import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { computeHabitStats } from '../../utils/habitStats.js'
-import { formatShortDate, currentWeekRange } from '../../utils/dateUtils.js'
+import { formatShortDate } from '../../utils/dateUtils.js'
+import { loadStatsRange, saveStatsRange } from '../../utils/statsRangeStorage.js'
 import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 import { StatsRangeControl } from './StatsRangeControl.jsx'
 import { CategoryTimeSection } from './CategoryTimeSection.jsx'
@@ -72,7 +73,12 @@ export function StatsPage() {
   const signedIn = useAuthStore((s) => Boolean(s.user))
   const refreshAllInstances = useEntityStore((s) => s.refreshAllInstances)
   const refreshAllJournals = useEntityStore((s) => s.refreshAllJournals)
-  const [range, setRange] = useState(currentWeekRange)
+  // The chosen filter is remembered on this device (see statsRangeStorage).
+  const [range, setRangeState] = useState(loadStatsRange)
+  const setRange = (next) => {
+    saveStatsRange(next)
+    setRangeState(next)
+  }
 
   useEffect(() => {
     refreshAllInstances()
