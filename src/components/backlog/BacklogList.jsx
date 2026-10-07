@@ -75,7 +75,9 @@ export function BacklogList({ rows: allRows, tab, view, groupStats, selection })
     body = sections.map(({ group, entries }) => {
       const isCollapsed = group !== null && collapsed.has(group)
       return (
-        <Fragment key={group ?? '__none__'}>
+        // A named group is drawn as one card (header + its tasks inside), so
+        // it reads as a unit rather than a header floating over a flat list.
+        <div key={group ?? '__none__'} className={group ? 'backlog-group' : 'backlog-group-loose'}>
           {(group || hasNamedGroups) && (
             <BacklogGroupHeader
               group={group}
@@ -85,8 +87,8 @@ export function BacklogList({ rows: allRows, tab, view, groupStats, selection })
               onToggle={group ? () => toggleCollapsed(group) : null}
             />
           )}
-          {!isCollapsed && entries.map(({ row, rank }) => renderItem(row, rank))}
-        </Fragment>
+          {!isCollapsed && <div className="backlog-group-body">{entries.map(({ row, rank }) => renderItem(row, rank))}</div>}
+        </div>
       )
     })
   } else {

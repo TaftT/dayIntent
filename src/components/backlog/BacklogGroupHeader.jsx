@@ -1,14 +1,19 @@
 import { useState } from 'react'
 import { useEntityStore } from '../../store/useEntityStore.js'
+import { useAppStore } from '../../store/useAppStore.js'
+import { ConfirmModal } from '../shared/ConfirmModal.jsx'
 
-// Header for one group in the grouped view: name, progress, collapse, and
-// rename / ungroup. `group` is null for the "No group" section.
+// Header for one group in the grouped view. Tapping the name opens the group
+// (every task in it, with add/remove); the arrow collapses it. `group` is null
+// for the "No group" section.
 export function BacklogGroupHeader({ group, stats, shown, collapsed, onToggle }) {
   const renameGroup = useEntityStore((s) => s.renameGroup)
   const setItemsGroup = useEntityStore((s) => s.setItemsGroup)
   const items = useEntityStore((s) => s.items)
+  const openModal = useAppStore((s) => s.openModal)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(group ?? '')
+  const [confirming, setConfirming] = useState(false)
 
   if (group === null) {
     return (
@@ -19,16 +24,12 @@ export function BacklogGroupHeader({ group, stats, shown, collapsed, onToggle })
     )
   }
 
+  const memberIds = items.filter((i) => i.group === group).map((i) => i.id)
   const pct = stats && stats.total > 0 ? (stats.done / stats.total) * 100 : 0
 
   const commitRename = async () => {
     setEditing(false)
     await renameGroup(group, draft)
-  }
-
-  const ungroup = async () => {
-    const ids = items.filter((i) => i.group === group).map((i) => i.id)
-    await setItemsGroup(ids, null)
   }
 
   return (
@@ -58,7 +59,14 @@ export function BacklogGroupHeader({ group, stats, shown, collapsed, onToggle })
           }}
         />
       ) : (
-        <span className="backlog-group-name">{group}</span>
+        <button
+          type="button"
+          className="backlog-group-name backlog-group-name-btn"
+          title="Open group"
+          onClick={() => openModal('groupDetail', { group })}
+        >
+          {group}
+        </button>
       )}
       {stats && (
         <span className="backlog-group-count">
@@ -76,7 +84,7 @@ export function BacklogGroupHeader({ group, stats, shown, collapsed, onToggle })
         >
           Rename
         </button>
-        <button type="button" className="backlog-group-action" onClick={ungroup} title="Remove every task from this group (nothing is deleted)">
+        <button type="button" className="backlog-group-action" onClick={() => setConfirming(true)}>
           Ungroup
         </button>
       </span>
@@ -84,6 +92,19 @@ export function BacklogGroupHeader({ group, stats, shown, collapsed, onToggle })
         <span className="backlog-group-progress" aria-hidden="true">
           <span className="backlog-group-progress-fill" style={{ width: `${pct}%` }} />
         </span>
+      )}
+      {confirming && (
+        <ConfirmModal
+          title="Ungroup tasks?"
+          message={`This removes all ${memberIds.length} task${memberIds.length === 1 ? '' : 's'} from “${group}”. The tasks themselves are kept.`}
+          confirmLabel="Ungroup"
+          danger
+          onConfirm={async () => {
+            setConfirming(false)
+            await setItemsGroup(memberIds, null)
+          }}
+          onCancel={() => setConfirming(false)}
+        />
       )}
     </div>
   )

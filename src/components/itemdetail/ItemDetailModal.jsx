@@ -9,7 +9,7 @@ import { StartTimeEditor } from './StartTimeEditor.jsx'
 import { PercentCompleteSlider } from './PercentCompleteSlider.jsx'
 import { CategoryPicker } from './CategoryPicker.jsx'
 import { RecurrenceEditor } from './RecurrenceEditor.jsx'
-import { ParentChildLinker } from './ParentChildLinker.jsx'
+import { GroupSection } from './GroupSection.jsx'
 import { RichTextEditor } from '../shared/RichTextEditor.jsx'
 import { useItem } from '../../hooks/useItem.js'
 import { useInstance } from '../../hooks/useInstance.js'
@@ -72,8 +72,6 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   // won't be pushed to the cloud on a later sign-in.
   const [syncEnabled, setSyncEnabled] = useState(existingItem?.syncEnabled ?? signedIn)
   const [group, setGroup] = useState(existingItem?.group ?? '')
-  const allItems = useEntityStore((s) => s.items)
-  const groupNames = Array.from(new Set(allItems.map((i) => i.group).filter(Boolean))).sort((a, b) => a.localeCompare(b))
   const [error, setError] = useState('')
   const [saveMenuOpen, setSaveMenuOpen] = useState(false)
   // Notes, recurrence, habit, sync and links stay tucked away until asked for.
@@ -396,22 +394,6 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
             <PercentCompleteSlider percentComplete={percentComplete} onChange={setPercentComplete} />
           )}
 
-          <label className="group-field">
-            <span>Group</span>
-            <input
-              type="text"
-              list="backlog-group-names"
-              value={group}
-              onChange={(e) => setGroup(e.target.value)}
-              placeholder="No group"
-            />
-            <datalist id="backlog-group-names">
-              {groupNames.map((g) => (
-                <option key={g} value={g} />
-              ))}
-            </datalist>
-          </label>
-
           <RichTextEditor value={notes} onChange={setNotes} className="notes-editor" placeholder="Notes" />
 
           <RecurrenceEditor recurrence={recurrence} defaultStartDate={scheduledDate} onChange={setRecurrence} />
@@ -428,7 +410,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
             </ToggleButton>
           )}
 
-          {!isCreate && existingItem && <ParentChildLinker item={existingItem} />}
+          <GroupSection group={group} onChange={setGroup} />
 
           <div className="item-detail-actions">{footer}</div>
           </>
