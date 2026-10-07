@@ -234,6 +234,11 @@ export const useEntityStore = create((set, get) => ({
     const inst = await repo.getInstance(instanceId)
     const patch = { percentComplete: clamped }
 
+    // Remember where it stood before being completed so "Mark incomplete" can
+    // put it back; forget it once it's no longer complete.
+    if (clamped >= 100 && inst.percentComplete < 100) patch.percentBeforeComplete = inst.percentComplete
+    else if (clamped < 100) patch.percentBeforeComplete = null
+
     // A finalized instance's status is normally locked-in history — but the
     // user can still go back and correct a past day (e.g. mark a ghost
     // complete because it actually got done), so recompute it here rather
