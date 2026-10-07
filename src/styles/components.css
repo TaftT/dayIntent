@@ -2402,3 +2402,67 @@
 .backlog-marked-done {
   font-weight: 600;
 }
+
+/* Per-row schedule action */
+
+.backlog-schedule-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.backlog-schedule-btn:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.backlog-schedule-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 170px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+}
+
+.backlog-schedule-menu > button,
+.backlog-schedule-date {
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.backlog-schedule-menu > button:hover,
+.backlog-schedule-date:hover {
+  background: var(--color-bg-alt);
+}
+
+.backlog-schedule-date {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.backlog-schedule-date input {
+  padding: 4px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+}

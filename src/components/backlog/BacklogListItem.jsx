@@ -5,6 +5,7 @@ import { useCategoryById } from '../../hooks/useCategories.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
+import { ScheduleMenu } from './ScheduleMenu.jsx'
 import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 import { formatMinutesShort, formatShortDate, formatTimeLabel, isTodayStr } from '../../utils/dateUtils.js'
 
@@ -14,7 +15,7 @@ function whenLabel(instance) {
   return !instance.isAllDay && instance.time ? `${day} · ${formatTimeLabel(instance.time)}` : day
 }
 
-export function BacklogListItem({ row, rank, draggable }) {
+export function BacklogListItem({ row, rank, draggable, canSchedule }) {
   const { item, percent, nextInstance } = row
   const category = useCategoryById(item.categoryId)
   const navigate = useNavigate()
@@ -134,6 +135,7 @@ export function BacklogListItem({ row, rank, draggable }) {
         )}
       </div>
       {percent > 0 && percent < 100 && <span className="backlog-item-percent">{percent}%</span>}
+      {canSchedule && !done && <ScheduleMenu item={item} instanceId={nextInstance?.id} />}
     </div>
   )
 }
