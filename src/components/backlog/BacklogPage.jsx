@@ -5,7 +5,7 @@ import { TopBar } from '../layout/TopBar.jsx'
 import { BacklogFilters } from './BacklogFilters.jsx'
 import { BacklogList } from './BacklogList.jsx'
 import { MiniCalendarDropTarget } from './MiniCalendarDropTarget.jsx'
-import { Button } from '../shared/Button.jsx'
+import { Icon } from '../shared/Icon.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { usePlannerSensors } from '../../utils/dnd/dndContextConfig.js'
@@ -59,9 +59,6 @@ export function BacklogPage() {
       <TopBar />
       <div className="backlog-page-toolbar">
         <h1>Backlog</h1>
-        <Button variant="primary" onClick={() => openModal('itemDetail', { itemId: null })}>
-          + New Item
-        </Button>
       </div>
       <BacklogFilters counts={counts} />
       <DndContext
@@ -78,6 +75,13 @@ export function BacklogPage() {
             position before the list reorders, which reads as a jump. */}
         <DragOverlay dropAnimation={null}>{activeTitle && <div className="drag-overlay-chip">{activeTitle}</div>}</DragOverlay>
       </DndContext>
+      <button
+        className="fab"
+        onClick={() => openModal('itemDetail', { itemId: null })}
+        aria-label="New item"
+      >
+        <Icon name="plus" size={24} />
+      </button>
     </div>
   )
 }
