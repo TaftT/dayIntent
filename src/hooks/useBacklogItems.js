@@ -41,7 +41,12 @@ function classify(items, allInstances, today) {
   return items.map((item) => {
     const insts = byItem.get(item.id) ?? []
     const upcoming = insts.filter((i) => !i.finalized).sort((a, b) => nextKey(a).localeCompare(nextKey(b)))
-    const nextInstance = upcoming.find((i) => i.date >= today) ?? upcoming[0] ?? null
+    // The next occurrence that still needs doing — an already-completed one
+    // (e.g. today's, for a daily series) is skipped so the list shows what's
+    // actually left. Falls back to a completed one if nothing else is upcoming.
+    const pending = upcoming.filter((i) => (i.percentComplete ?? 0) < 100)
+    const nextInstance =
+      pending.find((i) => i.date >= today) ?? pending[0] ?? upcoming.find((i) => i.date >= today) ?? upcoming[0] ?? null
     const lastFinalized = insts
       .filter((i) => i.finalized)
       .sort((a, b) => b.date.localeCompare(a.date))[0]
