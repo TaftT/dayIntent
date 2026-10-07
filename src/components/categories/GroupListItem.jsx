@@ -21,24 +21,26 @@ export function GroupListItem({ group }) {
       className={`category-list-item ${isDragging ? 'dragging' : ''}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      <DragHandle setActivatorNodeRef={setActivatorNodeRef} listeners={listeners} attributes={attributes} />
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={() => name.trim() && name !== group.name && saveGroup({ id: group.id, name: name.trim() })}
-      />
-      <span className="group-member-count" title="Tasks in this group">
-        {memberCount}
-      </span>
-      <button
-        type="button"
-        className="icon-button"
-        onClick={() => setConfirming(true)}
-        aria-label={`Delete ${group.name}`}
-      >
-        🗑
-      </button>
+      <div className="category-list-main">
+        <DragHandle setActivatorNodeRef={setActivatorNodeRef} listeners={listeners} attributes={attributes} />
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => name.trim() && name !== group.name && saveGroup({ id: group.id, name: name.trim() })}
+        />
+        <span className="group-member-count" title="Tasks in this group">
+          {memberCount}
+        </span>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => setConfirming(true)}
+          aria-label={`Delete ${group.name}`}
+        >
+          🗑
+        </button>
+      </div>
       <ColorSwatchPicker color={group.color} onChange={(color) => saveGroup({ id: group.id, color })} />
       {confirming && (
         <ConfirmModal

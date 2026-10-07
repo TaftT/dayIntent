@@ -10,7 +10,7 @@ import { usePlannerSensors } from '../../utils/dnd/dndContextConfig.js'
 import { useCategories } from '../../hooks/useCategories.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
-import { CATEGORY_COLOR_SWATCHES } from '../../utils/colorUtils.js'
+import { DEFAULT_COLOR_SWATCHES } from '../../utils/colorUtils.js'
 
 // One place to manage both lists. The order set here is the order they appear
 // in every picker (category dropdown, group chips) and in the grouped backlog.
@@ -35,7 +35,7 @@ export function CategoryManagerModal({ initialTab = 'categories' }) {
     if (isGroups) {
       await createGroup(name)
     } else {
-      const color = CATEGORY_COLOR_SWATCHES[categories.length % CATEGORY_COLOR_SWATCHES.length]
+      const color = DEFAULT_COLOR_SWATCHES[categories.length % DEFAULT_COLOR_SWATCHES.length]
       await saveCategory({ name, color })
     }
     setNewName('')

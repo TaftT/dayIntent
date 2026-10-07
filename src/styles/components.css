@@ -1400,6 +1400,14 @@
   min-width: 0;
 }
 
+.category-list-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  flex-basis: 100%;
+  gap: 8px;
+}
+
 .category-list-item .color-swatch-picker {
   flex-basis: 100%;
   padding-left: 46px;

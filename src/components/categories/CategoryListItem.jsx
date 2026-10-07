@@ -18,21 +18,23 @@ export function CategoryListItem({ category }) {
       className={`category-list-item ${isDragging ? 'dragging' : ''}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      <DragHandle setActivatorNodeRef={setActivatorNodeRef} listeners={listeners} attributes={attributes} />
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={() => name.trim() && name !== category.name && saveCategory({ id: category.id, name })}
-      />
-      <button
-        type="button"
-        className="icon-button"
-        onClick={() => deleteCategory(category.id)}
-        aria-label={`Delete ${category.name}`}
-      >
-        🗑
-      </button>
+      <div className="category-list-main">
+        <DragHandle setActivatorNodeRef={setActivatorNodeRef} listeners={listeners} attributes={attributes} />
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => name.trim() && name !== category.name && saveCategory({ id: category.id, name })}
+        />
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => deleteCategory(category.id)}
+          aria-label={`Delete ${category.name}`}
+        >
+          🗑
+        </button>
+      </div>
       <ColorSwatchPicker color={category.color} onChange={(color) => saveCategory({ id: category.id, color })} />
     </div>
   )

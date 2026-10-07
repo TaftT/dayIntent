@@ -5,7 +5,7 @@ import { runRollover } from '../data/rollover.js'
 import { regenerateFutureInstances } from '../data/recurrence.js'
 import { reorderWithinGroup } from '../utils/groupOrder.js'
 import { todayStr, addDaysStr, timeStrToMinutes } from '../utils/dateUtils.js'
-import { CATEGORY_COLOR_SWATCHES } from '../utils/colorUtils.js'
+import { DEFAULT_COLOR_SWATCHES } from '../utils/colorUtils.js'
 
 // True once an occurrence is entirely in the past: an earlier date, or today
 // with its end time (start + duration) already behind the clock. All-day
@@ -546,7 +546,7 @@ export const useEntityStore = create((set, get) => ({
 
   /** Creates a group, picking the next swatch color unless one is given. */
   createGroup: async (name, color) => {
-    const chosen = color ?? CATEGORY_COLOR_SWATCHES[get().groups.length % CATEGORY_COLOR_SWATCHES.length]
+    const chosen = color ?? DEFAULT_COLOR_SWATCHES[get().groups.length % DEFAULT_COLOR_SWATCHES.length]
     return get().saveGroup({ name: name.trim(), color: chosen })
   },
 
@@ -588,7 +588,7 @@ export const useEntityStore = create((set, get) => ({
       if (!group) {
         group = await repo.saveGroup({
           name: item.group.trim(),
-          color: CATEGORY_COLOR_SWATCHES[byName.size % CATEGORY_COLOR_SWATCHES.length],
+          color: DEFAULT_COLOR_SWATCHES[byName.size % DEFAULT_COLOR_SWATCHES.length],
         })
         byName.set(key, group)
       }

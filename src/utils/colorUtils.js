@@ -15,7 +15,8 @@ export function contrastTextColor(hex) {
 // contrastTextColor and `${color}3d` alpha math in the day-view blocks.
 export const UNCATEGORIZED_COLOR = '#c9cdd3'
 
-export const CATEGORY_COLOR_SWATCHES = [
+// New categories/groups cycle through these first, brightest colors.
+export const DEFAULT_COLOR_SWATCHES = [
   '#3b6fe0',
   '#3ba76a',
   '#e0973b',
@@ -23,4 +24,20 @@ export const CATEGORY_COLOR_SWATCHES = [
   '#8a5fd6',
   '#3bb0c9',
   '#e0517f',
+]
+
+// Everything offered in the color picker: the defaults plus extra hues and
+// neutral grays. The grays are deliberately darker than UNCATEGORIZED_COLOR
+// so a real category/group never looks like "no category".
+export const CATEGORY_COLOR_SWATCHES = [
+  ...DEFAULT_COLOR_SWATCHES,
+  '#e0c53b', // yellow
+  '#7bc043', // lime
+  '#2a9d8f', // teal
+  '#4aa3f0', // sky
+  '#5b5bd6', // indigo
+  '#c2185b', // magenta
+  '#b5651d', // rust
+  '#8b93a0', // slate gray
+  '#4a4f57', // charcoal
 ]
