@@ -28,6 +28,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
   const category = useCategoryById(item?.categoryId)
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
   const openModal = useAppStore((s) => s.openModal)
+  const isHighlighted = useAppStore((s) => s.highlightItemId === instance.itemId)
   const isSelected = useAppStore((s) => s.selectedInstanceIds.includes(instance.id))
   const toggleInstanceSelection = useAppStore((s) => s.toggleInstanceSelection)
   // Non-zero only for selected blocks while another selected block is being
@@ -97,7 +98,8 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
     return (
       <div
         ref={setNodeRef}
-        className={`instance-line status-${status}${isSelected ? ' instance-selected' : ''}`}
+        data-item-id={instance.itemId}
+        className={`instance-line status-${status}${isSelected ? ' instance-selected' : ''}${isHighlighted ? ' highlight-flash' : ''}`}
         style={{
           top: linePx - REMINDER_LABEL_HEIGHT,
           height: REMINDER_LABEL_HEIGHT,
@@ -159,7 +161,8 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
   return (
     <div
       ref={setNodeRef}
-      className={`instance-block status-${status}${cappedStagger > 0 ? ' instance-block-staggered' : ''}${isSelected ? ' instance-selected' : ''}`}
+      data-item-id={instance.itemId}
+      className={`instance-block status-${status}${cappedStagger > 0 ? ' instance-block-staggered' : ''}${isSelected ? ' instance-selected' : ''}${isHighlighted ? ' highlight-flash' : ''}`}
       style={style}
       {...listeners}
       {...attributes}

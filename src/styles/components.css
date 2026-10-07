@@ -29,6 +29,7 @@
 
 .day-view,
 .backlog-page {
+  position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -2195,4 +2196,209 @@
   .category-time-bar-track {
     grid-area: bar;
   }
+}
+
+/* Backlog revamp: tabs + to-do style rows */
+
+.backlog-controls {
+  padding: 8px 16px 0;
+}
+
+.backlog-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.backlog-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.backlog-tab.active {
+  color: var(--color-text);
+  border-bottom-color: var(--color-primary);
+}
+
+.backlog-tab-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--color-bg-alt);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.backlog-tab.active .backlog-tab-count {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+.backlog-quick-add input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.95rem;
+}
+
+.backlog-quick-add input:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--color-primary);
+}
+
+.backlog-list-item {
+  cursor: pointer;
+  gap: 10px;
+}
+
+.backlog-list-item.is-done .backlog-item-title {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.backlog-drag-handle {
+  flex-shrink: 0;
+  padding: 6px 2px;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  letter-spacing: -2px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.backlog-rank {
+  min-width: 18px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.backlog-check {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-primary-contrast);
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.backlog-check:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.backlog-check.checked {
+  background: #2f9e63;
+  border-color: #2f9e63;
+  color: #fff;
+}
+
+.backlog-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.backlog-item-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.backlog-when {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.backlog-when:hover {
+  text-decoration: underline;
+}
+
+.backlog-progress {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-bg-alt);
+  overflow: hidden;
+}
+
+.backlog-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+}
+
+/* Phones: five tabs share the row width (label over count) instead of scrolling sideways */
+@media (max-width: 600px) {
+  .backlog-tabs {
+    overflow-x: hidden;
+    gap: 0;
+  }
+
+  .backlog-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 3px;
+    padding: 8px 2px;
+    font-size: 0.76rem;
+    line-height: 1.15;
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+.backlog-show-more {
+  align-self: center;
+  margin: 8px 0;
+  cursor: pointer;
+}
+
+/* Brief glow on the item you jumped to from the backlog */
+.highlight-flash {
+  animation: highlight-flash 3s ease-out;
+}
+
+@keyframes highlight-flash {
+  0%,
+  60% {
+    box-shadow: 0 0 0 4px var(--color-primary), 0 0 18px 4px var(--color-primary);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent;
+  }
+}
+
+.backlog-marked-done {
+  font-weight: 600;
 }

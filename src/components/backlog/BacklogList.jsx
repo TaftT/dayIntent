@@ -1,49 +1,64 @@
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { BacklogListItem } from './BacklogListItem.jsx'
 import { BacklogInstanceRow } from './BacklogInstanceRow.jsx'
-import { useBacklogItems, BACKLOG_SECTION_LABEL } from '../../hooks/useBacklogItems.js'
-import { useAppStore } from '../../store/useAppStore.js'
+import { BacklogQuickAdd } from './BacklogQuickAdd.jsx'
 
-export function BacklogList() {
-  const filters = useAppStore((s) => s.backlogFilters)
-  const rows = useBacklogItems(filters)
+const EMPTY_TEXT = {
+  todo: 'Nothing to do — add a task above.',
+  scheduled: 'Nothing scheduled. Schedule a task from your To do list.',
+  recurring: 'No recurring tasks yet.',
+  progress: 'Nothing in progress.',
+  done: 'Nothing completed yet.',
+}
 
-  if (rows.length === 0) {
-    return <div className="empty-state">Nothing in the backlog. Drag items here or create a new one.</div>
-  }
+// Only the To do tab is a priority list, so only there can rows be dragged to
+// reorder (or onto the calendar to schedule).
+// The Done tab can grow without bound, so it only renders the most recent
+// completions and loads older ones on request. Nothing is deleted.
+const DONE_PAGE_SIZE = 25
 
-  // BacklogInstanceRow (a recurring item's next occurrence) isn't draggable,
-  // so only the plain-item rows participate in the sortable set.
+export function BacklogList({ rows: allRows, tab }) {
+  const [doneLimit, setDoneLimit] = useState(DONE_PAGE_SIZE)
+  const draggable = tab === 'todo'
+  const rows = tab === 'done' ? allRows.slice(0, doneLimit) : allRows
+  const hiddenDone = tab === 'done' ? allRows.length - rows.length : 0
   const sortableIds = rows.filter((row) => row.type === 'item').map((row) => row.item.id)
-  // Only bother showing section headers once more than one section is in play.
-  const showHeaders = new Set(rows.map((r) => r.section)).size > 1
-
   let lastSection = null
 
   return (
     <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
       <div className="backlog-list">
-        {rows.map((row) => {
+        {tab === 'todo' && <BacklogQuickAdd />}
+        {rows.length === 0 && <div className="empty-state">{EMPTY_TEXT[tab]}</div>}
+        {rows.map((row, index) => {
           const rowEl =
             row.type === 'instance' ? (
-              <BacklogInstanceRow key={row.instance.id} item={row.item} instance={row.instance} />
+              <BacklogInstanceRow key={row.instance.id} row={row} />
             ) : (
-              <BacklogListItem key={row.item.id} item={row.item} />
+              <BacklogListItem key={row.item.id} row={row} rank={draggable ? index + 1 : null} draggable={draggable} />
             )
 
-          if (showHeaders && row.section !== lastSection) {
+          if (row.section && row.section !== lastSection) {
             lastSection = row.section
             return (
               <Fragment key={`section-${row.section}`}>
-                <div className="backlog-section-header">{BACKLOG_SECTION_LABEL[row.section]}</div>
+                <div className="backlog-section-header">{row.section}</div>
                 {rowEl}
               </Fragment>
             )
           }
-          lastSection = row.section
           return rowEl
         })}
+        {hiddenDone > 0 && (
+          <button
+            type="button"
+            className="btn btn-subtle backlog-show-more"
+            onClick={() => setDoneLimit((n) => n + DONE_PAGE_SIZE)}
+          >
+            Show {Math.min(DONE_PAGE_SIZE, hiddenDone)} older ({hiddenDone} more)
+          </button>
+        )}
       </div>
     </SortableContext>
   )
