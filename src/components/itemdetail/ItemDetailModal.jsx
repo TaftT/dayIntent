@@ -184,7 +184,12 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
         }
         await updateItem(itemId, payload)
       } else {
-        await updateItem(itemId, { ...payload, percentComplete: percent, notes })
+        // Remember the pre-completion percent so "Mark incomplete" can restore it.
+        const before = existingItem?.percentComplete ?? 0
+        let percentBeforeComplete = existingItem?.percentBeforeComplete ?? null
+        if (percent >= 100 && before < 100) percentBeforeComplete = before
+        else if (percent < 100) percentBeforeComplete = null
+        await updateItem(itemId, { ...payload, percentComplete: percent, percentBeforeComplete, notes })
       }
       closeModal()
     } catch (err) {
@@ -351,7 +356,21 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
             ) : null}
           />
         )}
-        {!isCreate && (
+        {!isCreate && percentComplete >= 100 && (
+          <Button
+            variant="subtle"
+            onClick={() => {
+              // Back to where it was before being completed (0 if unknown).
+              const prev = (instanceId ? instance : existingItem)?.percentBeforeComplete
+              const restored = prev != null && prev < 100 ? prev : 0
+              setPercentComplete(restored)
+              handleSave(false, restored)
+            }}
+          >
+            ↺ Mark incomplete
+          </Button>
+        )}
+        {!isCreate && percentComplete < 100 && (
           <Button variant="success" onClick={() => { setPercentComplete(100); handleSave(false, 100) }}>
             ✓ Mark complete
           </Button>

@@ -139,9 +139,9 @@ export function computeUnscheduledTime(instances, items, categories, journals, f
   const wakingMinutes = Math.max(0, totalMinutes - sleepMinutes)
 
   const { rows } = computeCategoryTime(instances, items, categories, from, to)
-  const completedTaskMinutes = rows
-    .filter((r) => !r.categoryId || !sleepCategoryIds.has(r.categoryId))
-    .reduce((sum, r) => sum + r.minutes, 0)
+  // Sleep isn't part of waking time, so it's left out of the per-category rows.
+  const taskRows = rows.filter((r) => !r.categoryId || !sleepCategoryIds.has(r.categoryId))
+  const completedTaskMinutes = taskRows.reduce((sum, r) => sum + r.minutes, 0)
 
   const downtimeMinutes = Math.max(0, wakingMinutes - completedTaskMinutes)
 
@@ -149,5 +149,5 @@ export function computeUnscheduledTime(instances, items, categories, journals, f
     .filter((j) => j.screenTimeMinutes != null && j.date >= from && j.date <= to)
     .reduce((sum, j) => sum + j.screenTimeMinutes, 0)
 
-  return { downtimeMinutes, wakingMinutes, sleepMinutes, completedTaskMinutes, screenTimeMinutes }
+  return { downtimeMinutes, wakingMinutes, sleepMinutes, completedTaskMinutes, screenTimeMinutes, taskRows }
 }

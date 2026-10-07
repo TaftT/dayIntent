@@ -1952,7 +1952,8 @@
 
 .category-time-row {
   display: grid;
-  grid-template-columns: minmax(90px, 140px) 1fr auto;
+  /* value column fits the longest label ("20h 30m") so every bar has the same length */
+  grid-template-columns: minmax(90px, 140px) 1fr 4.5em;
   align-items: center;
   gap: 10px;
 }
@@ -1968,19 +1969,36 @@
 }
 
 .category-time-bar-track {
-  height: 10px;
+  height: 20px;
   border-radius: 999px;
   background: var(--color-bg-alt);
   overflow: hidden;
 }
 
 .category-time-bar {
+  display: flex;
+  align-items: center;
   height: 100%;
   border-radius: 999px;
-  min-width: 2px;
+  /* keeps the percent label readable on very small shares */
+  min-width: 2.8em;
+}
+
+.category-time-bar-label {
+  padding: 0 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+.category-time-extras-note {
+  margin: 0;
 }
 
 .category-time-value {
+  text-align: right;
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-muted);
