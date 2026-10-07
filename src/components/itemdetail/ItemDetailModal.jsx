@@ -326,7 +326,6 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
               aria-label="Scheduled date"
             />
           )}
-          {date && !isAllDay && <StartTimeEditor time={startTime} onChange={setStartTime} />}
           {date && isRecurringInstance && (
             <InfoTip label="About changing the date or time">
               Changing the date only moves this occurrence. Changing the time moves just this
@@ -337,6 +336,13 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
             All day
           </ToggleButton>
         </div>
+        {/* Own line: date + time + toggle together are wider than a phone, which
+            pushed "All day" onto a line by itself. */}
+        {date && !isAllDay && (
+          <div className="scheduled-info-row">
+            <StartTimeEditor time={startTime} onChange={setStartTime} />
+          </div>
+        )}
         {isAllDay ? (
           <DaysStepper
             days={allDayDaysFromMinutes(durationMinutes)}

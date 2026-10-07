@@ -7,7 +7,7 @@ import { useCategories } from '../../hooks/useCategories.js'
 import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 import { formatShortDate, isTodayStr } from '../../utils/dateUtils.js'
 
-const MAX_SEARCH_RESULTS = 6
+const MAX_SEARCH_RESULTS = 8
 
 // Everything in one group — every task whatever its status — with the
 // controls to add tasks to it (new or existing), take them out, rename the
@@ -55,7 +55,10 @@ export function GroupDetailModal({ groupId }) {
   const q = search.trim().toLowerCase()
   const candidates = q
     ? items
-        .filter((i) => i.groupId !== groupId && !i.recurrence && i.title.toLowerCase().includes(q))
+        // Tasks already in this group stay listed (marked Added) so adding one
+        // doesn't make it vanish from under the finger.
+        .filter((i) => !i.recurrence && i.title.toLowerCase().includes(q))
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         .slice(0, MAX_SEARCH_RESULTS)
     : []
 
@@ -186,23 +189,28 @@ export function GroupDetailModal({ groupId }) {
               placeholder="Add an existing task — search by title…"
               aria-label="Search tasks to add"
             />
-            {candidates.map((item) => (
-              <div key={item.id} className="group-detail-row">
-                <span className="category-dot" style={{ background: colorFor(item) }} />
-                <span className="group-detail-title-static">{item.title}</span>
-                {item.groupId && <span className="group-detail-status">in another group</span>}
-                <button
-                  type="button"
-                  className="btn btn-subtle"
-                  onClick={async () => {
-                    await setItemsGroup([item.id], groupId)
-                    setSearch('')
-                  }}
-                >
-                  Add
-                </button>
-              </div>
-            ))}
+            {candidates.map((item) => {
+              const status = statusOf(item)
+              const added = item.groupId === groupId
+              return (
+                <div key={item.id} className={`group-detail-row ${status.done ? 'is-done' : ''}`}>
+                  <span className="category-dot" style={{ background: colorFor(item) }} />
+                  <span className="group-detail-title-static">{item.title}</span>
+                  <span className="group-detail-status">
+                    {status.label}
+                    {item.groupId && !added ? ' · in another group' : ''}
+                  </span>
+                  <button
+                    type="button"
+                    className={`btn btn-subtle ${added ? 'group-added' : ''}`}
+                    onClick={() => setItemsGroup([item.id], added ? null : groupId)}
+                    title={added ? 'Tap to remove from this group' : undefined}
+                  >
+                    {added ? 'Added ✓' : 'Add'}
+                  </button>
+                </div>
+              )
+            })}
             {q && candidates.length === 0 && <div className="group-picker-label">No matching tasks.</div>}
           </div>
         </div>

@@ -1,6 +1,7 @@
+import { Icon } from '../shared/Icon.jsx'
 import { useCategories } from '../../hooks/useCategories.js'
 import { useAppStore } from '../../store/useAppStore.js'
-import { BACKLOG_TABS } from '../../hooks/useBacklogItems.js'
+import { BACKLOG_TABS, UNCATEGORIZED_FILTER } from '../../hooks/useBacklogItems.js'
 
 export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
   const categories = useCategories()
@@ -38,6 +39,7 @@ export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
           aria-label="Filter by category"
         >
           <option value="">All categories</option>
+          <option value={UNCATEGORIZED_FILTER}>Uncategorized</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -63,21 +65,24 @@ export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            className="btn btn-subtle"
-            onClick={() => openModal('categoryManager', { initialTab: 'groups' })}
-            title="Add, color and reorder groups and categories"
-          >
-            Organize
-          </button>
-          <button
-            type="button"
-            className={`btn btn-subtle backlog-select-btn ${selecting ? 'active' : ''}`}
-            onClick={onToggleSelecting}
-          >
-            {selecting ? 'Done selecting' : 'Select'}
-          </button>
+          <div className="backlog-view-actions">
+            <button
+              type="button"
+              className="btn btn-subtle backlog-organize-btn"
+              onClick={() => openModal('categoryManager', { initialTab: 'groups' })}
+              aria-label="Organize groups and categories"
+              title="Organize groups and categories"
+            >
+              <Icon name="categories" size={18} />
+            </button>
+            <button
+              type="button"
+              className={`btn btn-subtle backlog-select-btn ${selecting ? 'active' : ''}`}
+              onClick={onToggleSelecting}
+            >
+              {selecting ? 'Done selecting' : 'Select'}
+            </button>
+          </div>
         </div>
       )}
     </div>
