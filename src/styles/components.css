@@ -2330,8 +2330,17 @@
 }
 
 .backlog-when {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: inherit;
   font-weight: 600;
   color: var(--color-primary);
+  cursor: pointer;
+}
+
+.backlog-when:hover {
+  text-decoration: underline;
 }
 
 .backlog-progress {

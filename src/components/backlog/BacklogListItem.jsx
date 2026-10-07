@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useCategoryById } from '../../hooks/useCategories.js'
@@ -16,6 +17,7 @@ function whenLabel(instance) {
 export function BacklogListItem({ row, rank, draggable }) {
   const { item, percent, nextInstance } = row
   const category = useCategoryById(item.categoryId)
+  const navigate = useNavigate()
   const items = useEntityStore((s) => s.items)
   const setItemComplete = useEntityStore((s) => s.setItemComplete)
   const openModal = useAppStore((s) => s.openModal)
@@ -97,7 +99,19 @@ export function BacklogListItem({ row, rank, draggable }) {
           <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
           {category && <span>{category.name}</span>}
           <span>{item.durationMinutes != null ? formatMinutesShort(item.durationMinutes) : 'Reminder'}</span>
-          {when && <span className="backlog-when">{when}</span>}
+          {when && (
+            <button
+              type="button"
+              className="backlog-when"
+              title="Open this day"
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(`/day/${nextInstance.date}`)
+              }}
+            >
+              {when}
+            </button>
+          )}
           {parent && <span title="Part of">↳ {parent.title}</span>}
           {childCount > 0 && <span>{childCount} sub</span>}
         </span>

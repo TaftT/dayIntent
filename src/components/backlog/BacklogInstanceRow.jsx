@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
@@ -10,6 +11,7 @@ import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 export function BacklogInstanceRow({ row }) {
   const { item, instance } = row
   const category = useCategoryById(item.categoryId)
+  const navigate = useNavigate()
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
   const openModal = useAppStore((s) => s.openModal)
   const signedIn = useAuthStore((s) => Boolean(s.user))
@@ -50,7 +52,17 @@ export function BacklogInstanceRow({ row }) {
           <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
           {category && <span>{category.name}</span>}
           <span>{item.durationMinutes != null ? formatMinutesShort(item.durationMinutes) : 'Reminder'}</span>
-          <span className="backlog-when">⟳ Next: {when}</span>
+          <button
+            type="button"
+            className="backlog-when"
+            title="Open this day"
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/day/${instance.date}`)
+            }}
+          >
+            ⟳ Next: {when}
+          </button>
         </span>
         {percent > 0 && percent < 100 && (
           <span className="backlog-progress" aria-label={`${percent}% complete`}>
