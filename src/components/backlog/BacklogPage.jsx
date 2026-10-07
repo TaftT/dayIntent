@@ -63,10 +63,6 @@ export function BacklogPage() {
         // flat-list view a child is just an indented row, so dragging it to
         // a new position is how you un-nest it (in addition to the explicit
         // unlink button in the item modal).
-        if (activeItem?.parentIds?.length > 0) {
-          await Promise.all(activeItem.parentIds.map((parentId) => unlinkParentChild(parentId, active.id)))
-        }
-
         // Uses the actual pointer position (start position + total
         // movement), not the dragged element's rect — the element can be
         // grabbed anywhere within its row, so its rect has an arbitrary
@@ -77,7 +73,12 @@ export function BacklogPage() {
         const ratio = pointerY != null && overRect && overRect.height > 0
           ? (pointerY - overRect.top) / overRect.height
           : null
+        // Reorder first so the new order shows immediately; un-nesting (which
+        // involves slower writes) follows rather than delaying the drop.
         await reorderItem(active.id, targetItemId, ratio != null && ratio <= 0.5 ? 'before' : 'after')
+        if (activeItem?.parentIds?.length > 0) {
+          await Promise.all(activeItem.parentIds.map((parentId) => unlinkParentChild(parentId, active.id)))
+        }
       }
     }
   }
@@ -102,7 +103,9 @@ export function BacklogPage() {
           <BacklogList />
           <MiniCalendarDropTarget isDragging={Boolean(activeTitle)} />
         </div>
-        <DragOverlay>{activeTitle && <div className="drag-overlay-chip">{activeTitle}</div>}</DragOverlay>
+        {/* No drop animation: the default slides the chip back to the row's old
+            position before the list reorders, which reads as a jump. */}
+        <DragOverlay dropAnimation={null}>{activeTitle && <div className="drag-overlay-chip">{activeTitle}</div>}</DragOverlay>
       </DndContext>
     </div>
   )

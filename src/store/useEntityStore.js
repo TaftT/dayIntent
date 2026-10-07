@@ -458,6 +458,14 @@ export const useEntityStore = create((set, get) => ({
     const insertIndex = position === 'after' ? targetIndex + 1 : targetIndex
     rest.splice(insertIndex, 0, ...draggedGroup)
 
+    // Show the new order immediately, before the (sequential) IndexedDB
+    // writes finish — otherwise the list sits in its old order for a moment
+    // after the drop and then visibly jumps once the store refreshes.
+    const newOrder = new Map(rest.map((item, idx) => [item.id, idx]))
+    set((s) => ({
+      items: s.items.map((i) => (newOrder.has(i.id) ? { ...i, order: newOrder.get(i.id) } : i)),
+    }))
+
     for (let i = 0; i < rest.length; i++) {
       if (rest[i].order !== i) {
         await repo.saveItem({ id: rest[i].id, order: i })
