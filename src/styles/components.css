@@ -2172,3 +2172,27 @@
 .item-detail-form {
   position: relative;
 }
+
+/* Phones: give each bar the full row width (name + time on top, bar beneath) */
+@media (max-width: 600px) {
+  .category-time-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'name value'
+      'bar bar';
+    row-gap: 4px;
+  }
+
+  .category-time-name {
+    grid-area: name;
+  }
+
+  .category-time-value {
+    grid-area: value;
+    width: auto;
+  }
+
+  .category-time-bar-track {
+    grid-area: bar;
+  }
+}

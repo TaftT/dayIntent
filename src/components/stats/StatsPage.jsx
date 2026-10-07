@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { TopBar } from '../layout/TopBar.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
+import { useAuthStore } from '../../store/useAuthStore.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { computeHabitStats } from '../../utils/habitStats.js'
 import { formatShortDate, currentWeekRange } from '../../utils/dateUtils.js'
@@ -67,6 +68,8 @@ function HabitCard({ item }) {
 
 export function StatsPage() {
   const items = useEntityStore((s) => s.items)
+  // The time breakdowns only work with signed-in, synced data; habits work either way.
+  const signedIn = useAuthStore((s) => Boolean(s.user))
   const refreshAllInstances = useEntityStore((s) => s.refreshAllInstances)
   const refreshAllJournals = useEntityStore((s) => s.refreshAllJournals)
   const [range, setRange] = useState(currentWeekRange)
@@ -84,9 +87,13 @@ export function StatsPage() {
       <div className="stats-page-content">
         <h1>Stats</h1>
 
-        <StatsRangeControl from={range.from} to={range.to} onChange={setRange} />
-        <CategoryTimeSection from={range.from} to={range.to} />
-        <ScreenTimeSection from={range.from} to={range.to} />
+        {signedIn && (
+          <>
+            <StatsRangeControl from={range.from} to={range.to} onChange={setRange} />
+            <CategoryTimeSection from={range.from} to={range.to} />
+            <ScreenTimeSection from={range.from} to={range.to} />
+          </>
+        )}
 
         <section className="stats-section">
           <div className="stats-section-header">

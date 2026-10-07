@@ -1,11 +1,12 @@
-import { addDaysStr } from './dateUtils.js'
+import { differenceInCalendarDays } from 'date-fns'
+import { addDaysStr, todayStr, timeStrToMinutes, fromDateStr } from './dateUtils.js'
 import { UNCATEGORIZED_COLOR } from './colorUtils.js'
 
 const UNCATEGORIZED = { categoryId: null, name: 'Uncategorized', color: UNCATEGORIZED_COLOR }
 
 /**
  * Time spent per category over a date range, counted from finalized
- * instances only — a "completed" instance contributes its full duration, a
+ * instances plus live progress on not-yet-finalized ones up to today — a "completed" instance contributes its full duration, a
  * "worked_on" one contributes its duration pro-rated by how far it got
  * (finalPercent). Pending/ghost instances and durationless reminders don't
  * count. Instances whose item was deleted, or whose item has no category,
@@ -24,17 +25,29 @@ export function computeCategoryTime(instances, items, categories, fromDate, toDa
   const categoriesById = new Map(categories.map((c) => [c.id, c]))
 
   const minutesByCategory = new Map()
+  const today = todayStr()
 
   for (const inst of instances) {
-    if (!inst.finalized) continue
-    if (inst.status !== 'completed' && inst.status !== 'worked_on') continue
     if (inst.date < from || inst.date > to) continue
     if (inst.durationMinutes == null) continue
 
-    const pct =
-      inst.status === 'completed'
-        ? 100
-        : Math.max(0, Math.min(100, inst.finalPercent ?? inst.percentComplete ?? 100))
+    let pct
+    if (inst.finalized) {
+      if (inst.status !== 'completed' && inst.status !== 'worked_on') continue
+      pct =
+        inst.status === 'completed'
+          ? 100
+          : Math.max(0, Math.min(100, inst.finalPercent ?? inst.percentComplete ?? 100))
+    } else {
+      // Not locked in yet (today, or a past day rollover hasn't run for):
+      // count live progress with the same rules finalization would apply, so
+      // today's completed work shows up right away instead of tomorrow.
+      if (inst.date > today) continue
+      const current = inst.percentComplete ?? 0
+      if (current >= 100) pct = 100
+      else if (current > (inst.startPercent ?? 0)) pct = current
+      else continue
+    }
     const minutes = (inst.durationMinutes * pct) / 100
 
     const item = itemsById.get(inst.itemId)
@@ -100,7 +113,9 @@ const SLEEP_CATEGORY_NAME = 'Sleep'
 /**
  * "Down time" over a range: waking minutes that weren't covered by a
  * completed/worked-on task.
- *   waking   = 24h/day  −  scheduled Sleep time
+ *   waking   = elapsed time in the range (24h per past day, today so far)
+ *              −  scheduled Sleep time that has already happened, including
+ *                 the part of last night's sleep that runs into the range
  *   downtime = waking    −  completed/worked task time (Sleep excluded)
  * Also returns the range's total logged screen time for display alongside.
  *
@@ -111,15 +126,25 @@ const SLEEP_CATEGORY_NAME = 'Sleep'
  * @param {string} fromDate 'YYYY-MM-DD' inclusive
  * @param {string} toDate 'YYYY-MM-DD' inclusive
  */
-export function computeUnscheduledTime(instances, items, categories, journals, fromDate, toDate) {
+export function computeUnscheduledTime(
+  instances,
+  items,
+  categories,
+  journals,
+  fromDate,
+  toDate,
+  now = new Date()
+) {
   const [from, to] = fromDate <= toDate ? [fromDate, toDate] : [toDate, fromDate]
 
-  let dayCount = 0
-  for (let d = from; d <= to; d = addDaysStr(d, 1)) {
-    dayCount++
-    if (dayCount > 5000) break
-  }
-  const totalMinutes = dayCount * 1440
+  // Everything is measured in minutes since 00:00 on `from`. Only time that
+  // has actually elapsed counts: the window ends at the end of `to`, or right
+  // now if that's earlier — otherwise the rest of today / the week would pad
+  // "waking time" and shrink every share.
+  const dayOffset = (dateStr) => differenceInCalendarDays(fromDateStr(dateStr), fromDateStr(from))
+  const nowAbs = dayOffset(todayStr()) * 1440 + now.getHours() * 60 + now.getMinutes()
+  const windowEnd = Math.max(0, Math.min((dayOffset(to) + 1) * 1440, nowAbs))
+  const totalMinutes = windowEnd
 
   const itemsById = new Map(items.map((i) => [i.id, i]))
   const sleepCategoryIds = new Set(
@@ -130,11 +155,18 @@ export function computeUnscheduledTime(instances, items, categories, journals, f
     return Boolean(item?.categoryId && sleepCategoryIds.has(item.categoryId))
   }
 
+  // Sleep is placed on the timeline by its real start and end, so a night that
+  // starts on the previous day (e.g. 10pm–6am) still takes its morning hours
+  // off the next day. Instances from the day before `from` can carry into it.
+  const dayBefore = addDaysStr(from, -1)
   let sleepMinutes = 0
   for (const inst of instances) {
     if (inst.isAllDay || inst.durationMinutes == null) continue
-    if (inst.date < from || inst.date > to) continue
-    if (isSleepInstance(inst)) sleepMinutes += inst.durationMinutes
+    if (inst.date < dayBefore || inst.date > to) continue
+    if (!isSleepInstance(inst)) continue
+    const start = dayOffset(inst.date) * 1440 + timeStrToMinutes(inst.time ?? '00:00')
+    const end = start + inst.durationMinutes
+    sleepMinutes += Math.max(0, Math.min(end, windowEnd) - Math.max(start, 0))
   }
   const wakingMinutes = Math.max(0, totalMinutes - sleepMinutes)
 

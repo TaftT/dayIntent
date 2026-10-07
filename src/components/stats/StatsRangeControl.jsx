@@ -16,6 +16,7 @@ export function rangeForPresetDays(days) {
 export function StatsRangeControl({ from, to, onChange }) {
   const week = currentWeekRange()
   const isThisWeek = week.from === from && week.to === to
+  const isToday = from === todayStr() && to === todayStr()
 
   const activePresetDays = PRESETS.find((p) => {
     const r = rangeForPresetDays(p.days)
@@ -25,6 +26,13 @@ export function StatsRangeControl({ from, to, onChange }) {
   return (
     <div className="stats-range">
       <div className="stats-range-presets">
+        <button
+          type="button"
+          className={`stats-range-preset ${isToday ? 'active' : ''}`}
+          onClick={() => onChange(rangeForPresetDays(1))}
+        >
+          Today
+        </button>
         <button
           type="button"
           className={`stats-range-preset ${isThisWeek ? 'active' : ''}`}

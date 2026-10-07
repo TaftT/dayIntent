@@ -11,8 +11,12 @@ function formatPercent(p) {
   return p > 0 && p < 1 ? '<1%' : `${Math.round(p)}%`
 }
 
-function TimeRow({ name, dot, minutes, wakingMinutes, color }) {
+// The label is the true share of waking time, but the bar is sized against the
+// largest row (scaleMax) — real shares are small, and bars drawn to true scale
+// would all look the same length.
+function TimeRow({ name, dot, minutes, wakingMinutes, scaleMax, color }) {
   const p = share(minutes, wakingMinutes)
+  const barWidth = share(minutes, scaleMax)
   return (
     <div className="category-time-row">
       <span className="category-time-name">
@@ -20,7 +24,7 @@ function TimeRow({ name, dot, minutes, wakingMinutes, color }) {
         {name}
       </span>
       <div className="category-time-bar-track">
-        <div className="category-time-bar" style={{ width: `${p}%`, background: color }}>
+        <div className="category-time-bar" style={{ width: `${barWidth}%`, background: color }}>
           <span className="category-time-bar-label">{formatPercent(p)}</span>
         </div>
       </div>
@@ -37,17 +41,34 @@ export function CategoryTimeSection({ from, to }) {
 
   const { taskRows, completedTaskMinutes, downtimeMinutes, wakingMinutes, screenTimeMinutes } =
     computeUnscheduledTime(allInstances, items, categories, allJournals, from, to)
+  const scaleMax = Math.max(downtimeMinutes, screenTimeMinutes, ...taskRows.map((r) => r.minutes))
 
   return (
     <section className="stats-section">
       <div className="stats-section-header">
         <h2>Time by category</h2>
-        <span className="stats-section-total">{formatMinutesShort(wakingMinutes)} waking</span>
       </div>
       <p className="stats-section-hint">
-        Share of your waking hours (sleep excluded). {formatMinutesShort(completedTaskMinutes)} spent on
-        completed or worked-on tasks; down time is everything else.
+        Share of your waking hours (sleep excluded). Completed item time counts completed and
+        worked-on tasks; down time is everything else.
       </p>
+
+      {wakingMinutes === 0 && (
+        <div className="empty-state">
+          No waking time has elapsed in this range yet (days still to come and scheduled sleep aren't counted).
+        </div>
+      )}
+
+      <div className="stat-tile-row">
+        <div className="stat-tile">
+          <span className="stat-tile-value">{formatMinutesShort(wakingMinutes)}</span>
+          <span className="stat-tile-label">Total waking time</span>
+        </div>
+        <div className="stat-tile">
+          <span className="stat-tile-value">{formatMinutesShort(completedTaskMinutes)}</span>
+          <span className="stat-tile-label">Completed item time</span>
+        </div>
+      </div>
 
       <div className="category-time-list">
         {taskRows.map((row) => (
@@ -58,6 +79,7 @@ export function CategoryTimeSection({ from, to }) {
             color={row.color}
             minutes={row.minutes}
             wakingMinutes={wakingMinutes}
+            scaleMax={scaleMax}
           />
         ))}
         <TimeRow
@@ -65,6 +87,7 @@ export function CategoryTimeSection({ from, to }) {
           color="var(--color-text-muted)"
           minutes={downtimeMinutes}
           wakingMinutes={wakingMinutes}
+          scaleMax={scaleMax}
         />
       </div>
 
@@ -74,6 +97,7 @@ export function CategoryTimeSection({ from, to }) {
           color="var(--color-primary)"
           minutes={screenTimeMinutes}
           wakingMinutes={wakingMinutes}
+          scaleMax={scaleMax}
         />
         <p className="stats-section-hint category-time-extras-note">
           Tracked separately from the above — it usually overlaps with down time.
