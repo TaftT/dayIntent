@@ -598,8 +598,17 @@ export const useEntityStore = create((set, get) => ({
 
   // ---- Categories ------------------------------------------------------
 
+  // Categories are either synced (shared across your signed-in devices) or
+  // local to this device. A new one syncs only when someone is signed in —
+  // the same default items use — so categories made offline never leak into
+  // the account later. Records from before this existed have no flag and
+  // count as synced (see isCategorySynced).
   saveCategory: async (categoryPartial) => {
-    const saved = await repo.saveCategory(categoryPartial)
+    const input =
+      !categoryPartial.id && categoryPartial.syncEnabled === undefined
+        ? { ...categoryPartial, syncEnabled: Boolean(useAuthStore.getState().user) }
+        : categoryPartial
+    const saved = await repo.saveCategory(input)
     await get().refreshCategories()
     return saved
   },
@@ -638,7 +647,11 @@ export const useEntityStore = create((set, get) => ({
 
     let sleepCategory = get().categories.find((c) => c.name === SLEEP_CATEGORY_NAME)
     if (!sleepCategory) {
-      sleepCategory = await repo.saveCategory({ name: SLEEP_CATEGORY_NAME, color: SLEEP_CATEGORY_COLOR })
+      sleepCategory = await repo.saveCategory({
+        name: SLEEP_CATEGORY_NAME,
+        color: SLEEP_CATEGORY_COLOR,
+        syncEnabled: Boolean(useAuthStore.getState().user),
+      })
       await get().refreshCategories()
     }
 

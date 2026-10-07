@@ -179,6 +179,7 @@ export async function pushInstancesBulk(instances, parentSyncEnabled) {
 
 export async function pushCategory(category) {
   if (!canPush()) return
+  if (category.syncEnabled === false) return // device-local category
   const envelope = await buildEnvelope(category, state.masterKey)
   await set(ref(rtdb, `${categoriesPath(state.uid)}/${category.id}`), { updatedAt: resolveUpdatedAt(category), ...envelope })
 }
@@ -249,7 +250,8 @@ async function mergeRemoteCategory(id, record) {
   if (local && local.updatedAt >= record.updatedAt) return
   const opened = await safeOpenEnvelope(record, state.masterKey)
   if (!opened.ok) return
-  await localRepo.saveCategory(opened.value, { preserveTimestamp: true })
+  // Anything that came from the cloud is a synced category by definition.
+  await localRepo.saveCategory({ ...opened.value, syncEnabled: true }, { preserveTimestamp: true })
   useEntityStore.getState().refreshCategories()
 }
 
@@ -257,6 +259,9 @@ async function mergeRemoteCategory(id, record) {
 // confuse it with), so this is safe to propagate as a real local delete.
 async function removeRemoteCategory(id) {
   if (!state) return
+  // A device-local category with a coincidentally matching id is never touched.
+  const local = (await localRepo.getAllCategories()).find((c) => c.id === id)
+  if (!local || local.syncEnabled === false) return
   await localRepo.deleteCategory(id)
   useEntityStore.getState().refreshCategories()
   useEntityStore.getState().refreshItems()
@@ -453,7 +458,7 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
       })
       .map(async ([, record]) => {
         const opened = await tryOpenEnvelope(record, masterKey, stats)
-        if (opened.ok) await localRepo.saveCategory(opened.value, { preserveTimestamp: true })
+        if (opened.ok) await localRepo.saveCategory({ ...opened.value, syncEnabled: true }, { preserveTimestamp: true })
       })
   )
 
@@ -461,6 +466,7 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
   await Promise.all(
     localCategories.map(async (category) => {
       if (pullOnly) return
+      if (category.syncEnabled === false) return // device-local: stays off the cloud
       const record = remoteCategories[category.id]
       if (!record || category.updatedAt > record.updatedAt) {
         await buildEnvelopeSafely(category, masterKey, `${categoriesPath(uid)}/${category.id}`, (envelope) => ({

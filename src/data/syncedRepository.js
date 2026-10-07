@@ -33,7 +33,8 @@ export async function deleteInstance(id) {
 
 export async function saveCategory(categoryPartial) {
   const saved = await raw.saveCategory(categoryPartial)
-  syncEngine.pushCategory(saved).catch(() => {})
+  // Device-local categories never go to the cloud.
+  if (saved.syncEnabled !== false) syncEngine.pushCategory(saved).catch(() => {})
   return saved
 }
 
