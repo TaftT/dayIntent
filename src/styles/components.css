@@ -2429,40 +2429,63 @@
   z-index: 60;
   display: flex;
   flex-direction: column;
-  min-width: 170px;
+  gap: 12px;
+  width: min(300px, calc(100vw - 16px));
+  padding: 12px;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-modal);
-  overflow: hidden;
 }
 
-.backlog-schedule-menu > button,
-.backlog-schedule-date {
-  padding: 10px 14px;
-  background: none;
-  border: none;
+.backlog-schedule-quick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.backlog-schedule-quick button {
+  padding: 9px 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-alt);
   color: var(--color-text);
-  font-size: 0.9rem;
-  text-align: left;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.backlog-schedule-menu > button:hover,
-.backlog-schedule-date:hover {
-  background: var(--color-bg-alt);
+.backlog-schedule-quick button:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
-.backlog-schedule-date {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.backlog-schedule-menu .mini-calendar {
+  width: 100%;
 }
 
-.backlog-schedule-date input {
-  padding: 4px 6px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
+.backlog-schedule-menu .mini-calendar-day {
+  cursor: pointer;
+}
+
+.backlog-schedule-menu .mini-calendar-day:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+.backlog-schedule-menu .mini-calendar-day:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.backlog-schedule-unschedule {
+  padding: 9px 0;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.backlog-schedule-unschedule:hover {
   color: var(--color-text);
 }
