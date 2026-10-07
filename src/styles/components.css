@@ -2889,3 +2889,14 @@
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
+
+.group-chip-btn.selected {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+.group-chip-add {
+  min-width: 34px;
+  font-weight: 700;
+}
