@@ -1,4 +1,5 @@
-import { todayStr, addDaysStr, currentWeekRange } from '../../utils/dateUtils.js'
+import { todayStr, addDaysStr, currentWeekRange, formatShortDate } from '../../utils/dateUtils.js'
+import { shiftRange } from '../../utils/shiftRange.js'
 
 // Presets are offsets back from today; `null` days means "all time" and is
 // resolved by the caller (it has the earliest record on hand).
@@ -13,10 +14,17 @@ export function rangeForPresetDays(days) {
   return { from: addDaysStr(to, -(days - 1)), to }
 }
 
+function rangeLabel(from, to) {
+  if (from === to) return from === todayStr() ? 'Today' : formatShortDate(from)
+  return `${formatShortDate(from)} – ${formatShortDate(to)}`
+}
+
 export function StatsRangeControl({ from, to, onChange }) {
   const week = currentWeekRange()
   const isThisWeek = week.from === from && week.to === to
   const isToday = from === todayStr() && to === todayStr()
+  const prev = shiftRange({ from, to }, -1)
+  const next = shiftRange({ from, to }, 1)
 
   const activePresetDays = PRESETS.find((p) => {
     const r = rangeForPresetDays(p.days)
@@ -50,6 +58,29 @@ export function StatsRangeControl({ from, to, onChange }) {
             Last {p.label}
           </button>
         ))}
+      </div>
+      <div className="stats-range-nav">
+        <button
+          type="button"
+          className="stats-range-arrow"
+          onClick={() => prev && onChange(prev)}
+          disabled={!prev}
+          aria-label="Previous period"
+          title="Previous period"
+        >
+          ‹
+        </button>
+        <span className="stats-range-label">{rangeLabel(from, to)}</span>
+        <button
+          type="button"
+          className="stats-range-arrow"
+          onClick={() => next && onChange(next)}
+          disabled={!next}
+          aria-label="Next period"
+          title="Next period"
+        >
+          ›
+        </button>
       </div>
       <div className="stats-range-dates">
         <label>
