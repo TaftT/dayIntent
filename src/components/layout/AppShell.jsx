@@ -7,6 +7,7 @@ import { CategoryManagerModal } from '../categories/CategoryManagerModal.jsx'
 import { SearchModal } from '../search/SearchModal.jsx'
 import { DatePickerModal } from '../dayview/DatePickerModal.jsx'
 import { QuickAddModal } from '../dayview/QuickAddModal.jsx'
+import { GroupDetailModal } from '../backlog/GroupDetailModal.jsx'
 import { AuthModal } from '../auth/AuthModal.jsx'
 import { UnlockPrompt } from '../auth/UnlockPrompt.jsx'
 import { SyncMismatchPrompt } from '../auth/SyncMismatchPrompt.jsx'
@@ -54,10 +55,13 @@ export function AppShell({ children }) {
       {activeModal?.type === 'itemDetail' && !isOpeningLockedItem && (
         <ItemDetailModal key={activeModal.props.itemId ?? 'new'} {...activeModal.props} />
       )}
-      {activeModal?.type === 'categoryManager' && <CategoryManagerModal />}
+      {activeModal?.type === 'categoryManager' && <CategoryManagerModal {...activeModal.props} />}
       {activeModal?.type === 'search' && <SearchModal />}
       {activeModal?.type === 'quickAdd' && <QuickAddModal {...activeModal.props} />}
       {activeModal?.type === 'datePicker' && <DatePickerModal {...activeModal.props} />}
+      {activeModal?.type === 'groupDetail' && (
+        <GroupDetailModal key={activeModal.props.groupId} {...activeModal.props} />
+      )}
       {activeModal?.type === 'auth' && <AuthModal />}
       {activeModal?.type === 'unlock' && <UnlockPrompt />}
       {activeModal?.type === 'syncMismatch' && <SyncMismatchPrompt />}

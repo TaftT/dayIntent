@@ -45,7 +45,7 @@ export function TopBar({ date }) {
         <button className="icon-button" onClick={() => openModal('search')} aria-label="Search">
           <Icon name="search" />
         </button>
-        <button className="icon-button" onClick={() => openModal('categoryManager')} aria-label="Categories">
+        <button className="icon-button" onClick={() => openModal('categoryManager')} aria-label="Organize categories and groups">
           <Icon name="categories" />
         </button>
         {firebaseEnabled && authReady && (

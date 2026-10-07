@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { TopBar } from '../layout/TopBar.jsx'
 import { BacklogFilters } from './BacklogFilters.jsx'
 import { BacklogList } from './BacklogList.jsx'
+import { BacklogSelectionBar } from './BacklogSelectionBar.jsx'
 import { Icon } from '../shared/Icon.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
@@ -11,11 +12,24 @@ import { useBacklogItems } from '../../hooks/useBacklogItems.js'
 
 export function BacklogPage() {
   const reorderItem = useEntityStore((s) => s.reorderItem)
+  const reorderInGroup = useEntityStore((s) => s.reorderInGroup)
   const openModal = useAppStore((s) => s.openModal)
   const sensors = usePlannerSensors()
   const [activeTitle, setActiveTitle] = useState(null)
   const filters = useAppStore((s) => s.backlogFilters)
-  const { rows, counts } = useBacklogItems(filters)
+  const { rows, counts, groupStats } = useBacklogItems(filters)
+  const groups = useEntityStore((s) => s.groups)
+  const filtersActive = Boolean(filters.searchText.trim() || filters.categoryId)
+  const [selecting, setSelecting] = useState(false)
+  const [selectedIds, setSelectedIds] = useState([])
+
+  const toggleSelect = (id) =>
+    setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
+  const endSelecting = () => {
+    setSelecting(false)
+    setSelectedIds([])
+  }
+  const selection = { active: selecting, ids: selectedIds, toggle: toggleSelect }
 
   const handleDragStart = (event) => {
     setActiveTitle(event.active.data.current?.item?.title ?? null)
@@ -38,7 +52,22 @@ export function BacklogPage() {
       const pointerY = startY != null ? startY + delta.y : null
       const ratio =
         pointerY != null && overRect && overRect.height > 0 ? (pointerY - overRect.top) / overRect.height : null
-      await reorderItem(active.id, targetItemId, ratio != null && ratio <= 0.5 ? 'before' : 'after')
+      const position = ratio != null && ratio <= 0.5 ? 'before' : 'after'
+
+      if (filters.tab === 'todo' && filters.view === 'grouped') {
+        // Grouped view: tasks only reorder within their own group (moving
+        // between groups is "Group…"), and only that group's tasks swap
+        // places — everyone else keeps their priority slot.
+        const known = new Set(groups.map((g) => g.id))
+        const groupOf = (item) => (item?.groupId && known.has(item.groupId) ? item.groupId : null)
+        const group = groupOf(active.data.current?.item)
+        const targetGroup = groupOf(over.data.current?.item)
+        if (group !== targetGroup) return
+        const groupIds = rows.filter((r) => groupOf(r.item) === group).map((r) => r.item.id)
+        await reorderInGroup(active.id, targetItemId, position, groupIds)
+        return
+      }
+      await reorderItem(active.id, targetItemId, position)
     }
   }
 
@@ -48,7 +77,11 @@ export function BacklogPage() {
       <div className="backlog-page-toolbar">
         <h1>Backlog</h1>
       </div>
-      <BacklogFilters counts={counts} />
+      <BacklogFilters
+        counts={counts}
+        selecting={selecting}
+        onToggleSelecting={() => (selecting ? endSelecting() : setSelecting(true))}
+      />
       <DndContext
         sensors={sensors}
         collisionDetection={pointerWithin}
@@ -56,19 +89,31 @@ export function BacklogPage() {
         onDragEnd={handleDragEnd}
       >
         <div className="backlog-page-content">
-          <BacklogList rows={rows} tab={filters.tab} />
+          <BacklogList
+            rows={rows}
+            tab={filters.tab}
+            view={filters.view}
+            groups={groups}
+            groupStats={groupStats}
+            filtersActive={filtersActive}
+            selection={selection}
+          />
         </div>
         {/* No drop animation: the default slides the chip back to the row's old
             position before the list reorders, which reads as a jump. */}
         <DragOverlay dropAnimation={null}>{activeTitle && <div className="drag-overlay-chip">{activeTitle}</div>}</DragOverlay>
       </DndContext>
-      <button
-        className="fab"
-        onClick={() => openModal('itemDetail', { itemId: null })}
-        aria-label="New item"
-      >
-        <Icon name="plus" size={24} />
-      </button>
+      {selecting ? (
+        <BacklogSelectionBar ids={selectedIds} onDone={endSelecting} />
+      ) : (
+        <button
+          className="fab"
+          onClick={() => openModal('itemDetail', { itemId: null })}
+          aria-label="New item"
+        >
+          <Icon name="plus" size={24} />
+        </button>
+      )}
     </div>
   )
 }

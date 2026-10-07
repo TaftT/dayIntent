@@ -92,6 +92,7 @@ export function useBacklogItems(filters = {}) {
 
   const tab = filters.tab ?? 'todo'
   const items = useEntityStore((s) => s.items)
+  const groups = useEntityStore((s) => s.groups)
   const allInstances = useEntityStore((s) => s.allInstances)
   // While cloud sync is locked (signed in, password not re-entered) a synced
   // item's up-to-date content can't be trusted, so it's hidden entirely —
@@ -101,6 +102,7 @@ export function useBacklogItems(filters = {}) {
 
   return useMemo(() => {
     const today = todayStr()
+    const groupNameById = new Map(groups.map((g) => [g.id, g.name]))
     const visible = hideSynced ? items.filter((i) => !i.syncEnabled) : items
     const classified = classify(visible, allInstances, today)
 
@@ -112,7 +114,14 @@ export function useBacklogItems(filters = {}) {
     const matching = classified.filter((c) => {
       if (!c.tabs.has(tab)) return false
       if (categoryId && c.item.categoryId !== categoryId) return false
-      if (q && !(c.item.title.toLowerCase().includes(q) || (c.item.notes ?? '').toLowerCase().includes(q))) {
+      if (
+        q &&
+        !(
+          c.item.title.toLowerCase().includes(q) ||
+          (c.item.notes ?? '').toLowerCase().includes(q) ||
+          (groupNameById.get(c.item.groupId) ?? '').toLowerCase().includes(q)
+        )
+      ) {
         return false
       }
       return true
@@ -146,6 +155,17 @@ export function useBacklogItems(filters = {}) {
       rows.sort(byOrder)
     }
 
-    return { rows, counts }
-  }, [items, allInstances, hideSynced, tab, categoryId, searchText])
+    // Per-group progress for the grouped view's headers, over every task in
+    // the group (whatever tab it's on), not just the visible ones.
+    const groupStats = {}
+    for (const c of classified) {
+      const g = c.item.groupId
+      if (!g || c.item.recurrence) continue
+      groupStats[g] ??= { total: 0, done: 0 }
+      groupStats[g].total += 1
+      if (c.percent >= 100) groupStats[g].done += 1
+    }
+
+    return { rows, counts, groupStats }
+  }, [items, groups, allInstances, hideSynced, tab, categoryId, searchText])
 }

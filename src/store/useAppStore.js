@@ -3,6 +3,25 @@ import { todayStr } from '../utils/dateUtils.js'
 
 let highlightTimer = null
 
+const VIEW_KEY = 'dayintent.backlogView'
+// Grouped is the default: with no groups it looks identical to the flat list,
+// and with groups it's the view that shows them.
+function readStoredView() {
+  try {
+    const v = localStorage.getItem(VIEW_KEY)
+    return v === 'list' || v === 'grouped' ? v : 'grouped'
+  } catch {
+    return 'grouped'
+  }
+}
+function writeStoredView(view) {
+  try {
+    localStorage.setItem(VIEW_KEY, view)
+  } catch {
+    /* private mode etc. — the choice just won't persist */
+  }
+}
+
 export const useAppStore = create((set) => ({
   currentDate: todayStr(),
   setCurrentDate: (date) => set({ currentDate: date }),
@@ -41,11 +60,16 @@ export const useAppStore = create((set) => ({
 
   backlogFilters: {
     tab: 'todo', // 'todo' | 'scheduled' | 'recurring' | 'progress' | 'done'
+    view: readStoredView(), // To do tab only: 'list' (flat, by priority) | 'grouped'
     categoryId: null,
     searchText: '',
   },
-  setBacklogFilters: (partial) =>
-    set((s) => ({ backlogFilters: { ...s.backlogFilters, ...partial } })),
+  setBacklogFilters: (partial) => {
+    // The List/Grouped choice survives a reload — otherwise groups appear to
+    // vanish every time the page reopens in the default view.
+    if (partial.view) writeStoredView(partial.view)
+    set((s) => ({ backlogFilters: { ...s.backlogFilters, ...partial } }))
+  },
 
   // Only ever one toast on screen: a new one replaces whatever's showing and
   // stays until the user dismisses it (or it's replaced again). Stacking

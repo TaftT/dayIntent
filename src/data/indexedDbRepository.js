@@ -80,6 +80,7 @@ export async function saveItem(item, { preserveTimestamp = false } = {}) {
     notes: '',
     categoryId: null,
     percentComplete: 0,
+    groupId: null,
     parentIds: [],
     childIds: [],
     recurrence: null,
@@ -187,8 +188,10 @@ export async function getAllCategories() {
   const db = await getDb()
   const all = await db.getAll('categories')
   // IndexedDB's natural order is by keyPath (a random-looking uuid), not
-  // insertion order, so sort explicitly to keep newly-added categories last.
-  return all.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  // insertion order, so sort explicitly: by the user's chosen `order`, with
+  // categories that predate ordering falling back to when they were created.
+  const sortKey = (c) => c.order ?? Date.parse(c.createdAt)
+  return all.sort((a, b) => sortKey(a) - sortKey(b) || a.createdAt.localeCompare(b.createdAt))
 }
 
 /**
@@ -203,6 +206,7 @@ export async function saveCategory(category, { preserveTimestamp = false } = {})
     id: category.id ?? generateId(),
     name: '',
     color: '#3b6fe0',
+    order: Date.now(),
     createdAt: nowIso(),
     ...existing,
     ...category,
@@ -228,6 +232,57 @@ export async function deleteCategory(id) {
     }
   }
   await db.delete('categories', id)
+}
+
+// ---------------------------------------------------------------------------
+// Groups (backlog groups: named, colored, user-ordered; items reference one by groupId)
+// ---------------------------------------------------------------------------
+
+/** @returns {Promise<import('./types.js').Group[]>} */
+export async function getAllGroups() {
+  const db = await getDb()
+  const all = await db.getAll('groups')
+  return all.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name))
+}
+
+/**
+ * @param {Partial<import('./types.js').Group>} group
+ * @param {{preserveTimestamp?: boolean}} [opts] - see saveItem
+ * @returns {Promise<import('./types.js').Group>}
+ */
+export async function saveGroup(group, { preserveTimestamp = false } = {}) {
+  const db = await getDb()
+  const existing = group.id ? await db.get('groups', group.id) : null
+  const merged = {
+    id: group.id ?? generateId(),
+    name: '',
+    color: '#3b6fe0',
+    order: Date.now(),
+    createdAt: nowIso(),
+    ...existing,
+    ...group,
+    updatedAt: preserveTimestamp && group.updatedAt ? group.updatedAt : nowIso(),
+  }
+  if (!merged.name || !merged.name.trim()) {
+    throw new Error('Group name is required')
+  }
+  await db.put('groups', merged)
+  return merged
+}
+
+/**
+ * Deletes a group, taking its tasks out of it (the tasks are kept).
+ * @param {string} id
+ */
+export async function deleteGroup(id) {
+  const db = await getDb()
+  const items = await getAllItems()
+  for (const item of items) {
+    if (item.groupId === id) {
+      await saveItem({ ...item, groupId: null })
+    }
+  }
+  await db.delete('groups', id)
 }
 
 // ---------------------------------------------------------------------------

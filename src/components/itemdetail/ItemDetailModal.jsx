@@ -9,7 +9,7 @@ import { StartTimeEditor } from './StartTimeEditor.jsx'
 import { PercentCompleteSlider } from './PercentCompleteSlider.jsx'
 import { CategoryPicker } from './CategoryPicker.jsx'
 import { RecurrenceEditor } from './RecurrenceEditor.jsx'
-import { ParentChildLinker } from './ParentChildLinker.jsx'
+import { GroupSection } from './GroupSection.jsx'
 import { RichTextEditor } from '../shared/RichTextEditor.jsx'
 import { useItem } from '../../hooks/useItem.js'
 import { useInstance } from '../../hooks/useInstance.js'
@@ -71,6 +71,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   // hidden while signed out); an item created offline stays local-only and
   // won't be pushed to the cloud on a later sign-in.
   const [syncEnabled, setSyncEnabled] = useState(existingItem?.syncEnabled ?? signedIn)
+  const [groupId, setGroupId] = useState(existingItem?.groupId ?? '')
   const [error, setError] = useState('')
   const [saveMenuOpen, setSaveMenuOpen] = useState(false)
   // Notes, recurrence, habit, sync and links stay tucked away until asked for.
@@ -79,6 +80,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   const [showMore, setShowMore] = useState(
     () =>
       Boolean(recurrence) ||
+      Boolean(existingItem?.groupId) ||
       isHabit ||
       (!isCreate && percentComplete > 0) ||
       notes.replace(/<[^>]*>|&nbsp;/g, '').trim() !== '' ||
@@ -148,6 +150,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
         : null,
       isHabit: recurrence ? isHabit : false,
       syncEnabled,
+      groupId: groupId || null,
     }
 
     try {
@@ -407,7 +410,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
             </ToggleButton>
           )}
 
-          {!isCreate && existingItem && <ParentChildLinker item={existingItem} />}
+          <GroupSection groupId={groupId} onChange={setGroupId} />
 
           <div className="item-detail-actions">{footer}</div>
           </>
