@@ -1,7 +1,7 @@
 // Two-way real-time sync between IndexedDB (source of truth for the UI) and
 // Firebase Realtime Database (encrypted, per-user store). Items and their
-// instances sync only when the item's syncEnabled is on; categories and
-// journal entries have no per-record toggle — they sync unconditionally
+// instances sync only when the item's syncEnabled is on; categories, backlog
+// groups and journal entries have no per-record toggle — they sync unconditionally
 // whenever someone is signed in, since they're global/day-keyed rather than
 // individually ownable the way an item is.
 //
@@ -47,6 +47,7 @@ function canPush() {
 const itemsPath = (uid) => `users/${uid}/items`
 const instancesPath = (uid) => `users/${uid}/instances`
 const categoriesPath = (uid) => `users/${uid}/categories`
+const groupsPath = (uid) => `users/${uid}/groups`
 const journalsPath = (uid) => `users/${uid}/journals`
 const saltPath = (uid) => `users/${uid}/meta/salt`
 const deletedItemsPath = (uid) => `users/${uid}/deletedItems`
@@ -187,6 +188,17 @@ export async function removeCategory(categoryId) {
   await remove(ref(rtdb, `${categoriesPath(state.uid)}/${categoryId}`))
 }
 
+export async function pushGroup(group) {
+  if (!canPush()) return
+  const envelope = await buildEnvelope(group, state.masterKey)
+  await set(ref(rtdb, `${groupsPath(state.uid)}/${group.id}`), { updatedAt: resolveUpdatedAt(group), ...envelope })
+}
+
+export async function removeGroup(groupId) {
+  if (!canPush()) return
+  await remove(ref(rtdb, `${groupsPath(state.uid)}/${groupId}`))
+}
+
 // Journals are keyed by date rather than a generated id, and there's no
 // "delete a journal entry" concept in the app, so there's no removeJournal.
 export async function pushJournal(journal) {
@@ -302,17 +314,37 @@ async function buildEnvelopeSafely(record, masterKey, path, buildPayload, update
   }
 }
 
+async function mergeRemoteGroup(id, record) {
+  if (!state || !record) return
+  const local = (await localRepo.getAllGroups()).find((g) => g.id === id)
+  if (local && local.updatedAt >= record.updatedAt) return
+  const opened = await safeOpenEnvelope(record, state.masterKey)
+  if (!opened.ok) return
+  await localRepo.saveGroup(opened.value, { preserveTimestamp: true })
+  useEntityStore.getState().refreshGroups()
+}
+
+// Like categories, a group removal is unambiguous (no sync toggle), so it
+// propagates as a real local delete.
+async function removeRemoteGroup(id) {
+  if (!state) return
+  await localRepo.deleteGroup(id)
+  useEntityStore.getState().refreshGroups()
+  useEntityStore.getState().refreshItems()
+}
+
 // pullOnly skips every local -> cloud write (used when this device's local
 // data belongs to another account — see start / OwnerMismatchError): the
 // cloud is still fully pulled down and merged, and locally-tombstoned ids are
 // still deleted locally, but nothing local is pushed up.
 async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
   const stats = { attempts: 0, successes: 0 }
-  const [itemsSnap, instancesSnap, categoriesSnap, journalsSnap, deletedItemsSnap, deletedInstancesSnap] =
+  const [itemsSnap, instancesSnap, categoriesSnap, groupsSnap, journalsSnap, deletedItemsSnap, deletedInstancesSnap] =
     await Promise.all([
       get(ref(rtdb, itemsPath(uid))),
       get(ref(rtdb, instancesPath(uid))),
       get(ref(rtdb, categoriesPath(uid))),
+      get(ref(rtdb, groupsPath(uid))),
       get(ref(rtdb, journalsPath(uid))),
       get(ref(rtdb, deletedItemsPath(uid))),
       get(ref(rtdb, deletedInstancesPath(uid))),
@@ -327,6 +359,7 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
     itemIds: new Set(itemsSnap.exists() ? Object.keys(itemsSnap.val()) : []),
     instanceIds: new Set(instancesSnap.exists() ? Object.keys(instancesSnap.val()) : []),
     categoryIds: new Set(categoriesSnap.exists() ? Object.keys(categoriesSnap.val()) : []),
+    groupIds: new Set(groupsSnap.exists() ? Object.keys(groupsSnap.val()) : []),
     journalDates: new Set(journalsSnap.exists() ? Object.keys(journalsSnap.val()) : []),
     deletedItemIds: new Set(deletedItemsSnap.exists() ? Object.keys(deletedItemsSnap.val()) : []),
     deletedInstanceIds: new Set(deletedInstancesSnap.exists() ? Object.keys(deletedInstancesSnap.val()) : []),
@@ -439,6 +472,37 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
   )
   if (Object.keys(categoryUpdates).length > 0) await update(ref(rtdb), categoryUpdates)
 
+  const remoteGroups = groupsSnap.exists() ? groupsSnap.val() : {}
+  const localGroups = await localRepo.getAllGroups()
+  const localGroupsById = new Map(localGroups.map((g) => [g.id, g]))
+
+  await Promise.all(
+    Object.entries(remoteGroups)
+      .filter(([id, record]) => {
+        const local = localGroupsById.get(id)
+        return !local || record.updatedAt > local.updatedAt
+      })
+      .map(async ([, record]) => {
+        const opened = await tryOpenEnvelope(record, masterKey, stats)
+        if (opened.ok) await localRepo.saveGroup(opened.value, { preserveTimestamp: true })
+      })
+  )
+
+  const groupUpdates = {}
+  await Promise.all(
+    localGroups.map(async (group) => {
+      if (pullOnly) return
+      const record = remoteGroups[group.id]
+      if (!record || group.updatedAt > record.updatedAt) {
+        await buildEnvelopeSafely(group, masterKey, `${groupsPath(uid)}/${group.id}`, (envelope) => ({
+          updatedAt: resolveUpdatedAt(group),
+          ...envelope,
+        }), groupUpdates)
+      }
+    })
+  )
+  if (Object.keys(groupUpdates).length > 0) await update(ref(rtdb), groupUpdates)
+
   const remoteJournals = journalsSnap.exists() ? journalsSnap.val() : {}
   const localJournals = await localRepo.getAllJournals()
   const localJournalsByDate = new Map(localJournals.map((j) => [j.date, j]))
@@ -482,6 +546,7 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
   await useEntityStore.getState().refreshAllInstances()
   await useEntityStore.getState().reloadLoadedDates()
   useEntityStore.getState().refreshCategories()
+  useEntityStore.getState().refreshGroups()
   const loadedJournalDates = Object.keys(useEntityStore.getState().journalsByDate)
   await Promise.all(loadedJournalDates.map((d) => useEntityStore.getState().loadJournalForDate(d)))
 
@@ -497,6 +562,7 @@ function attachListeners(uid, knownIds) {
   const itemsR = ref(rtdb, itemsPath(uid))
   const instancesR = ref(rtdb, instancesPath(uid))
   const categoriesR = ref(rtdb, categoriesPath(uid))
+  const groupsR = ref(rtdb, groupsPath(uid))
   const journalsR = ref(rtdb, journalsPath(uid))
   const deletedItemsR = ref(rtdb, deletedItemsPath(uid))
   const deletedInstancesR = ref(rtdb, deletedInstancesPath(uid))
@@ -508,6 +574,9 @@ function attachListeners(uid, knownIds) {
   detachFns.push(onChildAdded(categoriesR, (snap) => { if (!knownIds.categoryIds.has(snap.key)) mergeRemoteCategory(snap.key, snap.val()) }))
   detachFns.push(onChildChanged(categoriesR, (snap) => mergeRemoteCategory(snap.key, snap.val())))
   detachFns.push(onChildRemoved(categoriesR, (snap) => removeRemoteCategory(snap.key)))
+  detachFns.push(onChildAdded(groupsR, (snap) => { if (!knownIds.groupIds.has(snap.key)) mergeRemoteGroup(snap.key, snap.val()) }))
+  detachFns.push(onChildChanged(groupsR, (snap) => mergeRemoteGroup(snap.key, snap.val())))
+  detachFns.push(onChildRemoved(groupsR, (snap) => removeRemoteGroup(snap.key)))
   detachFns.push(onChildAdded(journalsR, (snap) => { if (!knownIds.journalDates.has(snap.key)) mergeRemoteJournal(snap.key, snap.val()) }))
   detachFns.push(onChildChanged(journalsR, (snap) => mergeRemoteJournal(snap.key, snap.val())))
   detachFns.push(onChildAdded(deletedItemsR, (snap) => { if (!knownIds.deletedItemIds.has(snap.key)) handleRemoteItemDeleted(snap.key) }))

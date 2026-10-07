@@ -7,34 +7,89 @@ import { useEntityStore } from '../useEntityStore.js'
 beforeEach(() => {
   globalThis.indexedDB = new IDBFactory()
   _resetDbForTests()
-  useEntityStore.setState({ items: [], allInstances: [], categories: [] })
+  useEntityStore.setState({ items: [], allInstances: [], categories: [], groups: [] })
 })
 
+const store = () => useEntityStore.getState()
+
 describe('backlog groups', () => {
-  it('setItemsGroup stores the group on the items and the store sees it', async () => {
+  it('creates groups with a name and color, and puts items in them', async () => {
     const a = await repo.saveItem({ title: 'A' })
-    const b = await repo.saveItem({ title: 'B' })
-    await useEntityStore.getState().refreshItems()
+    await store().refreshItems()
 
-    await useEntityStore.getState().setItemsGroup([a.id, b.id], '  Moving  ')
+    const g = await store().createGroup('  Moving  ')
+    expect(g.name).toBe('Moving')
+    expect(g.color).toBeTruthy()
+    expect(store().groups.map((x) => x.name)).toEqual(['Moving'])
 
-    const items = useEntityStore.getState().items
-    expect(items.map((i) => i.group)).toEqual(['Moving', 'Moving'])
-    // persisted, not just in memory
-    expect((await repo.getItem(a.id)).group).toBe('Moving')
+    await store().setItemsGroup([a.id], g.id)
+    expect(store().items[0].groupId).toBe(g.id)
+    expect((await repo.getItem(a.id)).groupId).toBe(g.id) // persisted
+
+    await store().setItemsGroup([a.id], null)
+    expect(store().items[0].groupId).toBeNull()
   })
 
-  it('removes the group with null, and renames across all members', async () => {
-    const a = await repo.saveItem({ title: 'A', group: 'Old' })
-    const b = await repo.saveItem({ title: 'B', group: 'Old' })
-    await useEntityStore.getState().refreshItems()
+  it('renames and recolors in one place (items follow by id)', async () => {
+    const g = await store().createGroup('Old')
+    const a = await repo.saveItem({ title: 'A', groupId: g.id })
+    await store().refreshItems()
 
-    await useEntityStore.getState().renameGroup('Old', 'New')
-    expect(useEntityStore.getState().items.map((i) => i.group)).toEqual(['New', 'New'])
+    await store().saveGroup({ id: g.id, name: 'New', color: '#123456' })
+    expect(store().groups[0]).toMatchObject({ name: 'New', color: '#123456' })
+    expect(store().items.find((i) => i.id === a.id).groupId).toBe(g.id)
+  })
 
-    await useEntityStore.getState().setItemsGroup([a.id], null)
-    const byId = Object.fromEntries(useEntityStore.getState().items.map((i) => [i.id, i.group]))
-    expect(byId[a.id]).toBeNull()
-    expect(byId[b.id]).toBe('New')
+  it('reorders groups and the order sticks', async () => {
+    const a = await store().createGroup('A')
+    const b = await store().createGroup('B')
+    const c = await store().createGroup('C')
+    expect(store().groups.map((g) => g.name)).toEqual(['A', 'B', 'C'])
+
+    await store().reorderGroups([c.id, a.id, b.id])
+    expect(store().groups.map((g) => g.name)).toEqual(['C', 'A', 'B'])
+
+    await store().refreshGroups() // reload from IndexedDB
+    expect(store().groups.map((g) => g.name)).toEqual(['C', 'A', 'B'])
+  })
+
+  it('reorders categories and the order sticks', async () => {
+    const a = await store().saveCategory({ name: 'A' })
+    const b = await store().saveCategory({ name: 'B' })
+    expect(store().categories.map((c) => c.name)).toEqual(['A', 'B'])
+
+    await store().reorderCategories([b.id, a.id])
+    await store().refreshCategories()
+    expect(store().categories.map((c) => c.name)).toEqual(['B', 'A'])
+  })
+
+  it('deleting a group keeps its tasks and ungroups them', async () => {
+    const g = await store().createGroup('Temp')
+    const a = await repo.saveItem({ title: 'A', groupId: g.id })
+    await store().refreshItems()
+
+    await store().deleteGroup(g.id)
+    expect(store().groups).toEqual([])
+    expect(store().items.find((i) => i.id === a.id).groupId).toBeNull()
+  })
+
+  it('migrates legacy name-based groups into group records (once)', async () => {
+    await repo.saveItem({ title: 'A', group: 'Errands' })
+    await repo.saveItem({ title: 'B', group: 'errands' })
+    await repo.saveItem({ title: 'C' })
+
+    await store().migrateGroupNames()
+    await store().refreshGroups()
+    await store().refreshItems()
+
+    // names that differ only by case collapse into one group
+    expect(store().groups.map((g) => g.name.toLowerCase())).toEqual(['errands'])
+    const gid = store().groups[0].id
+    const byTitle = Object.fromEntries(store().items.map((i) => [i.title, i.groupId]))
+    expect(byTitle).toMatchObject({ A: gid, B: gid, C: null })
+
+    await store().migrateGroupNames() // idempotent
+    await store().refreshGroups()
+    expect(store().groups).toHaveLength(1)
   })
 })

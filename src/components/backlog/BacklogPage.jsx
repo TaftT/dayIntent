@@ -18,6 +18,8 @@ export function BacklogPage() {
   const [activeTitle, setActiveTitle] = useState(null)
   const filters = useAppStore((s) => s.backlogFilters)
   const { rows, counts, groupStats } = useBacklogItems(filters)
+  const groups = useEntityStore((s) => s.groups)
+  const filtersActive = Boolean(filters.searchText.trim() || filters.categoryId)
   const [selecting, setSelecting] = useState(false)
   const [selectedIds, setSelectedIds] = useState([])
 
@@ -56,10 +58,12 @@ export function BacklogPage() {
         // Grouped view: tasks only reorder within their own group (moving
         // between groups is "Group…"), and only that group's tasks swap
         // places — everyone else keeps their priority slot.
-        const group = active.data.current?.item?.group ?? null
-        const targetGroup = over.data.current?.item?.group ?? null
+        const known = new Set(groups.map((g) => g.id))
+        const groupOf = (item) => (item?.groupId && known.has(item.groupId) ? item.groupId : null)
+        const group = groupOf(active.data.current?.item)
+        const targetGroup = groupOf(over.data.current?.item)
         if (group !== targetGroup) return
-        const groupIds = rows.filter((r) => (r.item.group ?? null) === group).map((r) => r.item.id)
+        const groupIds = rows.filter((r) => groupOf(r.item) === group).map((r) => r.item.id)
         await reorderInGroup(active.id, targetItemId, position, groupIds)
         return
       }
@@ -89,7 +93,9 @@ export function BacklogPage() {
             rows={rows}
             tab={filters.tab}
             view={filters.view}
+            groups={groups}
             groupStats={groupStats}
+            filtersActive={filtersActive}
             selection={selection}
           />
         </div>

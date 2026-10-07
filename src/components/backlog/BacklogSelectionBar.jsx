@@ -6,17 +6,20 @@ import { GroupPicker } from './GroupPicker.jsx'
 // their group, or cancel. Replaces the floating + button while active.
 export function BacklogSelectionBar({ ids, onDone }) {
   const items = useEntityStore((s) => s.items)
+  const groups = useEntityStore((s) => s.groups)
   const setItemsGroup = useEntityStore((s) => s.setItemsGroup)
+  const createGroup = useEntityStore((s) => s.createGroup)
   const [picking, setPicking] = useState(false)
 
-  const groups = Array.from(new Set(items.map((i) => i.group).filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b)
-  )
-  const anyGrouped = items.some((i) => ids.includes(i.id) && i.group)
+  const anyGrouped = items.some((i) => ids.includes(i.id) && i.groupId)
 
-  const apply = async (groupName) => {
+  // `choice` is { id } for an existing group, { name } for a new one, or null to ungroup.
+  const apply = async (choice) => {
     setPicking(false)
-    await setItemsGroup(ids, groupName)
+    let groupId = null
+    if (choice?.id) groupId = choice.id
+    else if (choice?.name) groupId = (await createGroup(choice.name)).id
+    await setItemsGroup(ids, groupId)
     onDone()
   }
 

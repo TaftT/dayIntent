@@ -18,26 +18,35 @@ const EMPTY_TEXT = {
 const DONE_PAGE_SIZE = 25
 
 /**
- * Splits the To do rows into group sections: named groups first, A→Z, then
- * the ungrouped tasks. Rows arrive in global priority order, so tasks stay in
- * priority order inside each section, and each keeps its global rank so the
- * interleaving across groups stays visible.
+ * Splits the To do rows into group sections in the order set in Organize,
+ * then the ungrouped tasks last. Rows arrive in global priority order, so
+ * tasks stay in priority order inside each section, and each keeps its global
+ * rank so the interleaving across groups stays visible. Groups with no tasks
+ * to show still get a (empty) section unless a search/filter is narrowing the
+ * list, so a group you just created is visible.
  */
-function buildGroupSections(rows) {
-  const sections = new Map()
+function buildGroupSections(rows, groups, showEmpty) {
+  const known = new Set(groups.map((g) => g.id))
+  const byGroup = new Map()
+  const loose = []
   rows.forEach((row, index) => {
-    const key = row.item.group ?? null
-    if (!sections.has(key)) sections.set(key, [])
-    sections.get(key).push({ row, rank: index + 1 })
+    const entry = { row, rank: index + 1 }
+    const id = row.item.groupId
+    if (id && known.has(id)) {
+      if (!byGroup.has(id)) byGroup.set(id, [])
+      byGroup.get(id).push(entry)
+    } else {
+      loose.push(entry)
+    }
   })
-  return Array.from(sections, ([group, entries]) => ({ group, entries })).sort((a, b) => {
-    if (a.group === null) return 1
-    if (b.group === null) return -1
-    return a.group.localeCompare(b.group, undefined, { sensitivity: 'base' })
-  })
+  const sections = groups
+    .filter((g) => showEmpty || byGroup.has(g.id))
+    .map((group) => ({ group, entries: byGroup.get(group.id) ?? [] }))
+  if (loose.length > 0 || sections.length === 0) sections.push({ group: null, entries: loose })
+  return sections
 }
 
-export function BacklogList({ rows: allRows, tab, view, groupStats, selection }) {
+export function BacklogList({ rows: allRows, tab, view, groups, groupStats, filtersActive, selection }) {
   const [doneLimit, setDoneLimit] = useState(DONE_PAGE_SIZE)
   const [collapsed, setCollapsed] = useState(() => new Set())
   // Only the To do tab is a priority list, so only there can rows be dragged.
@@ -70,21 +79,23 @@ export function BacklogList({ rows: allRows, tab, view, groupStats, selection })
 
   let body
   if (grouped) {
-    const sections = buildGroupSections(rows)
+    const sections = buildGroupSections(rows, groups, !filtersActive)
     const hasNamedGroups = sections.some((s) => s.group)
     body = sections.map(({ group, entries }) => {
-      const isCollapsed = group !== null && collapsed.has(group)
+      const isCollapsed = group !== null && collapsed.has(group.id)
       return (
         // A named group is drawn as one card (header + its tasks inside), so
         // it reads as a unit rather than a header floating over a flat list.
-        <div key={group ?? '__none__'} className={group ? 'backlog-group' : 'backlog-group-loose'}>
+        <div key={group?.id ?? '__none__'} className={group ? 'backlog-group' : 'backlog-group-loose'}
+          style={group ? { borderLeftColor: group.color } : undefined}
+        >
           {(group || hasNamedGroups) && (
             <BacklogGroupHeader
               group={group}
-              stats={group ? groupStats[group] : null}
+              stats={group ? groupStats[group.id] : null}
               shown={entries.length}
               collapsed={isCollapsed}
-              onToggle={group ? () => toggleCollapsed(group) : null}
+              onToggle={group ? () => toggleCollapsed(group.id) : null}
             />
           )}
           {!isCollapsed && <div className="backlog-group-body">{entries.map(({ row, rank }) => renderItem(row, rank))}</div>}
@@ -117,7 +128,9 @@ export function BacklogList({ rows: allRows, tab, view, groupStats, selection })
     <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
       <div className="backlog-list">
         {tab === 'todo' && !selection.active && <BacklogQuickAdd />}
-        {rows.length === 0 && <div className="empty-state">{EMPTY_TEXT[tab]}</div>}
+        {rows.length === 0 && !(grouped && groups.length > 0 && !filtersActive) && (
+          <div className="empty-state">{EMPTY_TEXT[tab]}</div>
+        )}
         {body}
         {hiddenDone > 0 && (
           <button

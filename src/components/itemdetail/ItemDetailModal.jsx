@@ -71,7 +71,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   // hidden while signed out); an item created offline stays local-only and
   // won't be pushed to the cloud on a later sign-in.
   const [syncEnabled, setSyncEnabled] = useState(existingItem?.syncEnabled ?? signedIn)
-  const [group, setGroup] = useState(existingItem?.group ?? '')
+  const [groupId, setGroupId] = useState(existingItem?.groupId ?? '')
   const [error, setError] = useState('')
   const [saveMenuOpen, setSaveMenuOpen] = useState(false)
   // Notes, recurrence, habit, sync and links stay tucked away until asked for.
@@ -80,7 +80,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   const [showMore, setShowMore] = useState(
     () =>
       Boolean(recurrence) ||
-      Boolean(existingItem?.group) ||
+      Boolean(existingItem?.groupId) ||
       isHabit ||
       (!isCreate && percentComplete > 0) ||
       notes.replace(/<[^>]*>|&nbsp;/g, '').trim() !== '' ||
@@ -150,7 +150,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
         : null,
       isHabit: recurrence ? isHabit : false,
       syncEnabled,
-      group: group.trim() || null,
+      groupId: groupId || null,
     }
 
     try {
@@ -410,7 +410,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
             </ToggleButton>
           )}
 
-          <GroupSection group={group} onChange={setGroup} />
+          <GroupSection groupId={groupId} onChange={setGroupId} />
 
           <div className="item-detail-actions">{footer}</div>
           </>

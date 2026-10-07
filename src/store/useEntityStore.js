@@ -5,6 +5,7 @@ import { runRollover } from '../data/rollover.js'
 import { regenerateFutureInstances } from '../data/recurrence.js'
 import { reorderWithinGroup } from '../utils/groupOrder.js'
 import { todayStr, addDaysStr, timeStrToMinutes } from '../utils/dateUtils.js'
+import { CATEGORY_COLOR_SWATCHES } from '../utils/colorUtils.js'
 
 // True once an occurrence is entirely in the past: an earlier date, or today
 // with its end time (start + duration) already behind the clock. All-day
@@ -36,6 +37,7 @@ async function clearUnscheduledFlag(itemId) {
 
 export const useEntityStore = create((set, get) => ({
   categories: [],
+  groups: [], // backlog groups, in the user's chosen order
   items: [],
   instancesByDate: {}, // date -> ScheduledInstance[]
   allInstances: [], // every instance, regardless of date — backs "has a future/past instance" checks
@@ -46,8 +48,10 @@ export const useEntityStore = create((set, get) => ({
   init: async () => {
     if (get().initialized) return
     await runRollover(todayStr())
+    await get().migrateGroupNames()
     await Promise.all([
       get().refreshCategories(),
+      get().refreshGroups(),
       get().refreshItems(),
       get().refreshAllInstances(),
       get().refreshAllJournals(),
@@ -58,6 +62,11 @@ export const useEntityStore = create((set, get) => ({
   refreshCategories: async () => {
     const categories = await repo.getAllCategories()
     set({ categories })
+  },
+
+  refreshGroups: async () => {
+    const groups = await repo.getAllGroups()
+    set({ groups })
   },
 
   refreshItems: async () => {
@@ -525,23 +534,66 @@ export const useEntityStore = create((set, get) => ({
   },
 
   // ---- Backlog groups --------------------------------------------------
-  // A group is just a name carried by its tasks (item.group): it exists while
-  // any task has it, needs no record of its own, and syncs with the items.
+  // A group is a record (name, color, order) that items point at via groupId,
+  // so it can be renamed, recolored and reordered in one place, and can exist
+  // before it has any tasks.
 
-  /** Puts the given items in a group (or removes them from any with null/''). */
-  setItemsGroup: async (itemIds, groupName) => {
-    const name = groupName?.trim() || null
-    for (const id of itemIds) await repo.saveItem({ id, group: name })
+  saveGroup: async (groupPartial) => {
+    const saved = await repo.saveGroup(groupPartial)
+    await get().refreshGroups()
+    return saved
+  },
+
+  /** Creates a group, picking the next swatch color unless one is given. */
+  createGroup: async (name, color) => {
+    const chosen = color ?? CATEGORY_COLOR_SWATCHES[get().groups.length % CATEGORY_COLOR_SWATCHES.length]
+    return get().saveGroup({ name: name.trim(), color: chosen })
+  },
+
+  /** Deletes the group; its tasks are kept and simply become ungrouped. */
+  deleteGroup: async (groupId) => {
+    await repo.deleteGroup(groupId)
+    await get().refreshGroups()
     await get().refreshItems()
   },
 
-  /** Renames a group everywhere; renaming onto an existing name merges them. */
-  renameGroup: async (oldName, newName) => {
-    const name = newName?.trim()
-    if (!name || name === oldName) return
-    const members = get().items.filter((i) => i.group === oldName)
-    for (const item of members) await repo.saveItem({ id: item.id, group: name })
+  /** Puts the given items in a group (or takes them out with null). */
+  setItemsGroup: async (itemIds, groupId) => {
+    for (const id of itemIds) await repo.saveItem({ id, groupId: groupId || null })
     await get().refreshItems()
+  },
+
+  /** Persists a new group order — `orderedIds` is the full list, first to last. */
+  reorderGroups: async (orderedIds) => {
+    const byId = new Map(get().groups.map((g) => [g.id, g]))
+    set({ groups: orderedIds.map((id, i) => ({ ...byId.get(id), order: i })).filter((g) => g.id) })
+    for (const [i, id] of orderedIds.entries()) {
+      if (byId.get(id) && byId.get(id).order !== i) await repo.saveGroup({ id, order: i })
+    }
+    await get().refreshGroups()
+  },
+
+  /**
+   * One-time upgrade for items grouped by name before groups were records:
+   * creates a group per distinct name and points the items at it. Safe to
+   * run repeatedly (does nothing once no legacy `group` strings remain).
+   */
+  migrateGroupNames: async () => {
+    const legacy = (await repo.getAllItems()).filter((i) => typeof i.group === 'string' && i.group.trim())
+    if (legacy.length === 0) return
+    const byName = new Map((await repo.getAllGroups()).map((g) => [g.name.toLowerCase(), g]))
+    for (const item of legacy) {
+      const key = item.group.trim().toLowerCase()
+      let group = byName.get(key)
+      if (!group) {
+        group = await repo.saveGroup({
+          name: item.group.trim(),
+          color: CATEGORY_COLOR_SWATCHES[byName.size % CATEGORY_COLOR_SWATCHES.length],
+        })
+        byName.set(key, group)
+      }
+      await repo.saveItem({ id: item.id, groupId: group.id, group: null })
+    }
   },
 
   // ---- Categories ------------------------------------------------------
@@ -550,6 +602,16 @@ export const useEntityStore = create((set, get) => ({
     const saved = await repo.saveCategory(categoryPartial)
     await get().refreshCategories()
     return saved
+  },
+
+  /** Persists a new category order — `orderedIds` is the full list, first to last. */
+  reorderCategories: async (orderedIds) => {
+    const byId = new Map(get().categories.map((c) => [c.id, c]))
+    set({ categories: orderedIds.map((id, i) => ({ ...byId.get(id), order: i })).filter((c) => c.id) })
+    for (const [i, id] of orderedIds.entries()) {
+      if (byId.get(id) && byId.get(id).order !== i) await repo.saveCategory({ id, order: i })
+    }
+    await get().refreshCategories()
   },
 
   deleteCategory: async (categoryId) => {

@@ -7,12 +7,13 @@ import { ConfirmModal } from '../shared/ConfirmModal.jsx'
 // (every task in it, with add/remove); the arrow collapses it. `group` is null
 // for the "No group" section.
 export function BacklogGroupHeader({ group, stats, shown, collapsed, onToggle }) {
-  const renameGroup = useEntityStore((s) => s.renameGroup)
+  // `group` is a Group record, or null for the "No group" section.
+  const saveGroup = useEntityStore((s) => s.saveGroup)
   const setItemsGroup = useEntityStore((s) => s.setItemsGroup)
   const items = useEntityStore((s) => s.items)
   const openModal = useAppStore((s) => s.openModal)
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(group ?? '')
+  const [draft, setDraft] = useState(group?.name ?? '')
   const [confirming, setConfirming] = useState(false)
 
   if (group === null) {
@@ -24,12 +25,12 @@ export function BacklogGroupHeader({ group, stats, shown, collapsed, onToggle })
     )
   }
 
-  const memberIds = items.filter((i) => i.group === group).map((i) => i.id)
+  const memberIds = items.filter((i) => i.groupId === group.id).map((i) => i.id)
   const pct = stats && stats.total > 0 ? (stats.done / stats.total) * 100 : 0
 
   const commitRename = async () => {
     setEditing(false)
-    await renameGroup(group, draft)
+    if (draft.trim() && draft.trim() !== group.name) await saveGroup({ id: group.id, name: draft.trim() })
   }
 
   return (
@@ -39,7 +40,7 @@ export function BacklogGroupHeader({ group, stats, shown, collapsed, onToggle })
         className="backlog-group-toggle"
         onClick={onToggle}
         aria-expanded={!collapsed}
-        aria-label={collapsed ? `Expand ${group}` : `Collapse ${group}`}
+        aria-label={collapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
       >
         {collapsed ? '▸' : '▾'}
       </button>
@@ -53,7 +54,7 @@ export function BacklogGroupHeader({ group, stats, shown, collapsed, onToggle })
           onKeyDown={(e) => {
             if (e.key === 'Enter') e.currentTarget.blur()
             if (e.key === 'Escape') {
-              setDraft(group)
+              setDraft(group.name)
               setEditing(false)
             }
           }}
@@ -63,9 +64,10 @@ export function BacklogGroupHeader({ group, stats, shown, collapsed, onToggle })
           type="button"
           className="backlog-group-name backlog-group-name-btn"
           title="Open group"
-          onClick={() => openModal('groupDetail', { group })}
+          onClick={() => openModal('groupDetail', { groupId: group.id })}
         >
-          {group}
+          <span className="category-dot" style={{ background: group.color }} />
+          {group.name}
         </button>
       )}
       {stats && (
@@ -78,7 +80,7 @@ export function BacklogGroupHeader({ group, stats, shown, collapsed, onToggle })
           type="button"
           className="backlog-group-action"
           onClick={() => {
-            setDraft(group)
+            setDraft(group.name)
             setEditing(true)
           }}
         >
@@ -96,7 +98,7 @@ export function BacklogGroupHeader({ group, stats, shown, collapsed, onToggle })
       {confirming && (
         <ConfirmModal
           title="Ungroup tasks?"
-          message={`This removes all ${memberIds.length} task${memberIds.length === 1 ? '' : 's'} from “${group}”. The tasks themselves are kept.`}
+          message={`This removes all ${memberIds.length} task${memberIds.length === 1 ? '' : 's'} from “${group.name}”. The tasks themselves are kept.`}
           confirmLabel="Ungroup"
           danger
           onConfirm={async () => {

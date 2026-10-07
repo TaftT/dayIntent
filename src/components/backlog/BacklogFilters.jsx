@@ -6,6 +6,7 @@ export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
   const categories = useCategories()
   const filters = useAppStore((s) => s.backlogFilters)
   const setBacklogFilters = useAppStore((s) => s.setBacklogFilters)
+  const openModal = useAppStore((s) => s.openModal)
 
   return (
     <div className="backlog-controls">
@@ -62,6 +63,14 @@ export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            className="btn btn-subtle"
+            onClick={() => openModal('categoryManager', { initialTab: 'groups' })}
+            title="Add, color and reorder groups and categories"
+          >
+            Organize
+          </button>
           <button
             type="button"
             className={`btn btn-subtle backlog-select-btn ${selecting ? 'active' : ''}`}

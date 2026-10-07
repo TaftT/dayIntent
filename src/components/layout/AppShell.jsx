@@ -55,12 +55,12 @@ export function AppShell({ children }) {
       {activeModal?.type === 'itemDetail' && !isOpeningLockedItem && (
         <ItemDetailModal key={activeModal.props.itemId ?? 'new'} {...activeModal.props} />
       )}
-      {activeModal?.type === 'categoryManager' && <CategoryManagerModal />}
+      {activeModal?.type === 'categoryManager' && <CategoryManagerModal {...activeModal.props} />}
       {activeModal?.type === 'search' && <SearchModal />}
       {activeModal?.type === 'quickAdd' && <QuickAddModal {...activeModal.props} />}
       {activeModal?.type === 'datePicker' && <DatePickerModal {...activeModal.props} />}
       {activeModal?.type === 'groupDetail' && (
-        <GroupDetailModal key={activeModal.props.group} {...activeModal.props} />
+        <GroupDetailModal key={activeModal.props.groupId} {...activeModal.props} />
       )}
       {activeModal?.type === 'auth' && <AuthModal />}
       {activeModal?.type === 'unlock' && <UnlockPrompt />}

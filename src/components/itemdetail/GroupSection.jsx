@@ -3,15 +3,13 @@ import { Modal } from '../shared/Modal.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
 
 // Lives where the parent/subtask linker used to: choose which group this task
-// belongs to — tap an existing group, or "+" to name a new one. The choice is
-// saved with the rest of the form.
-export function GroupSection({ group, onChange }) {
-  const items = useEntityStore((s) => s.items)
+// belongs to — tap a group (in the order set in Organize), or "+" to create a
+// new one. `groupId` is saved with the rest of the form.
+export function GroupSection({ groupId, onChange }) {
+  const groups = useEntityStore((s) => s.groups)
+  const createGroup = useEntityStore((s) => s.createGroup)
   const [creating, setCreating] = useState(false)
   const [draft, setDraft] = useState('')
-  const names = Array.from(new Set(items.map((i) => i.group).filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b)
-  )
   const trimmed = draft.trim()
 
   const closeNew = () => {
@@ -19,10 +17,11 @@ export function GroupSection({ group, onChange }) {
     setDraft('')
   }
 
-  const create = (e) => {
+  const create = async (e) => {
     e.preventDefault()
     if (!trimmed) return
-    onChange(trimmed)
+    const group = await createGroup(trimmed)
+    onChange(group.id)
     closeNew()
   }
 
@@ -30,23 +29,18 @@ export function GroupSection({ group, onChange }) {
     <div className="group-section">
       <div className="group-section-title">Group</div>
       <div className="group-section-chips">
-        {names.map((n) => (
+        {groups.map((g) => (
           <button
-            key={n}
+            key={g.id}
             type="button"
-            className={`group-chip-btn ${n === group ? 'selected' : ''}`}
-            aria-pressed={n === group}
-            onClick={() => onChange(n === group ? '' : n)}
+            className={`group-chip-btn ${g.id === groupId ? 'selected' : ''}`}
+            aria-pressed={g.id === groupId}
+            onClick={() => onChange(g.id === groupId ? '' : g.id)}
           >
-            {n}
+            <span className="category-dot" style={{ background: g.color }} />
+            {g.name}
           </button>
         ))}
-        {/* A group set here but not yet saved anywhere else won't be in `names`. */}
-        {group && !names.includes(group) && (
-          <button type="button" className="group-chip-btn selected" aria-pressed onClick={() => onChange('')}>
-            {group}
-          </button>
-        )}
         <button
           type="button"
           className="group-chip-btn group-chip-add"
@@ -57,7 +51,9 @@ export function GroupSection({ group, onChange }) {
           +
         </button>
       </div>
-      {!group && <div className="group-picker-label">Not in a group. Tap a group to add this task, tap it again to remove it.</div>}
+      {!groupId && (
+        <div className="group-picker-label">Not in a group. Tap a group to add this task, tap it again to remove it.</div>
+      )}
 
       {creating && (
         <Modal title="New group" onClose={closeNew} width={340}>

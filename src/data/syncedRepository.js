@@ -42,6 +42,24 @@ export async function deleteCategory(id) {
   syncEngine.removeCategory(id).catch(() => {})
 }
 
+export async function saveGroup(groupPartial) {
+  const saved = await raw.saveGroup(groupPartial)
+  syncEngine.pushGroup(saved).catch(() => {})
+  return saved
+}
+
+export async function deleteGroup(id) {
+  // Deleting a group takes its tasks out of it; those item edits need to
+  // reach the cloud too (the raw repository write doesn't push).
+  const members = (await raw.getAllItems()).filter((i) => i.groupId === id).map((i) => i.id)
+  await raw.deleteGroup(id)
+  syncEngine.removeGroup(id).catch(() => {})
+  for (const itemId of members) {
+    const item = await raw.getItem(itemId)
+    if (item) syncEngine.pushItem(item).catch(() => {})
+  }
+}
+
 export async function saveJournal(journalPartial) {
   const saved = await raw.saveJournal(journalPartial)
   syncEngine.pushJournal(saved).catch(() => {})

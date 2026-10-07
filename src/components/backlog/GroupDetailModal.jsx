@@ -12,26 +12,26 @@ const MAX_SEARCH_RESULTS = 6
 // Everything in one group — every task whatever its status — with the
 // controls to add tasks to it (new or existing), take them out, rename the
 // group or ungroup it.
-export function GroupDetailModal({ group: initialGroup }) {
+export function GroupDetailModal({ groupId }) {
   const items = useEntityStore((s) => s.items)
   const allInstances = useEntityStore((s) => s.allInstances)
   const createItem = useEntityStore((s) => s.createItem)
   const setItemsGroup = useEntityStore((s) => s.setItemsGroup)
-  const renameGroup = useEntityStore((s) => s.renameGroup)
+  const saveGroup = useEntityStore((s) => s.saveGroup)
+  const group = useEntityStore((s) => s.groups.find((g) => g.id === groupId) ?? null)
   const setItemComplete = useEntityStore((s) => s.setItemComplete)
   const closeModal = useAppStore((s) => s.closeModal)
   const openModal = useAppStore((s) => s.openModal)
   const categories = useCategories()
 
-  const [group, setGroup] = useState(initialGroup)
   const [renaming, setRenaming] = useState(false)
-  const [draft, setDraft] = useState(initialGroup)
+  const [draft, setDraft] = useState(group?.name ?? '')
   const [newTitle, setNewTitle] = useState('')
   const [search, setSearch] = useState('')
   const [confirmUngroup, setConfirmUngroup] = useState(false)
 
   const members = items
-    .filter((i) => i.group === group)
+    .filter((i) => i.groupId === groupId)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 
   // Where a member stands: its upcoming occurrence if scheduled, otherwise
@@ -55,7 +55,7 @@ export function GroupDetailModal({ group: initialGroup }) {
   const q = search.trim().toLowerCase()
   const candidates = q
     ? items
-        .filter((i) => i.group !== group && !i.recurrence && i.title.toLowerCase().includes(q))
+        .filter((i) => i.groupId !== groupId && !i.recurrence && i.title.toLowerCase().includes(q))
         .slice(0, MAX_SEARCH_RESULTS)
     : []
 
@@ -64,16 +64,13 @@ export function GroupDetailModal({ group: initialGroup }) {
     const title = newTitle.trim()
     if (!title) return
     setNewTitle('')
-    await createItem({ title, durationMinutes: 30, isUnscheduled: true, group })
+    await createItem({ title, durationMinutes: 30, isUnscheduled: true, groupId })
   }
 
   const commitRename = async () => {
     setRenaming(false)
     const name = draft.trim()
-    if (name && name !== group) {
-      await renameGroup(group, name)
-      setGroup(name)
-    }
+    if (name && name !== group.name) await saveGroup({ id: groupId, name })
   }
 
   const ungroupAll = async () => {
@@ -84,11 +81,15 @@ export function GroupDetailModal({ group: initialGroup }) {
     closeModal()
   }
 
+  // The group can disappear underneath this window (deleted in Organize, or
+  // removed on another device).
+  if (!group) return null
+
   const colorFor = (item) => categories.find((c) => c.id === item.categoryId)?.color ?? UNCATEGORIZED_COLOR
 
   return (
     <>
-      <Modal title={group} onClose={closeModal} width={480}>
+      <Modal title={group.name} onClose={closeModal} width={480}>
         <div className="group-detail">
           <div className="group-detail-summary">
             <span>
@@ -111,7 +112,7 @@ export function GroupDetailModal({ group: initialGroup }) {
                 type="button"
                 className="backlog-group-action"
                 onClick={() => {
-                  setDraft(group)
+                  setDraft(group.name)
                   setRenaming(true)
                 }}
               >
@@ -169,7 +170,7 @@ export function GroupDetailModal({ group: initialGroup }) {
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              placeholder={`New task in ${group}…`}
+              placeholder={`New task in ${group.name}…`}
               aria-label="New task in this group"
             />
             <button type="submit" className="btn btn-primary" disabled={!newTitle.trim()}>
@@ -189,12 +190,12 @@ export function GroupDetailModal({ group: initialGroup }) {
               <div key={item.id} className="group-detail-row">
                 <span className="category-dot" style={{ background: colorFor(item) }} />
                 <span className="group-detail-title-static">{item.title}</span>
-                {item.group && <span className="group-detail-status">in {item.group}</span>}
+                {item.groupId && <span className="group-detail-status">in another group</span>}
                 <button
                   type="button"
                   className="btn btn-subtle"
                   onClick={async () => {
-                    await setItemsGroup([item.id], group)
+                    await setItemsGroup([item.id], groupId)
                     setSearch('')
                   }}
                 >
@@ -209,7 +210,7 @@ export function GroupDetailModal({ group: initialGroup }) {
       {confirmUngroup && (
         <ConfirmModal
           title="Ungroup tasks?"
-          message={`This removes all ${members.length} task${members.length === 1 ? '' : 's'} from “${group}”. The tasks themselves are kept.`}
+          message={`This removes all ${members.length} task${members.length === 1 ? '' : 's'} from “${group.name}”. The tasks themselves are kept.`}
           confirmLabel="Ungroup"
           danger
           onConfirm={ungroupAll}

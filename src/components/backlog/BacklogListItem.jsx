@@ -21,6 +21,7 @@ export function BacklogListItem({ row, rank, draggable, canSchedule, selection }
   const navigate = useNavigate()
   const flashItem = useAppStore((s) => s.flashItem)
   const items = useEntityStore((s) => s.items)
+  const group = useEntityStore((s) => s.groups.find((g) => g.id === item.groupId) ?? null)
   const setItemComplete = useEntityStore((s) => s.setItemComplete)
   const openModal = useAppStore((s) => s.openModal)
   const signedIn = useAuthStore((s) => Boolean(s.user))
@@ -134,7 +135,12 @@ export function BacklogListItem({ row, rank, draggable, canSchedule, selection }
               {when}
             </button>
           )}
-          {item.group && <span className="backlog-group-chip" title="Group">{item.group}</span>}
+          {group && (
+            <span className="backlog-group-chip" title="Group">
+              <span className="category-dot" style={{ background: group.color }} />
+              {group.name}
+            </span>
+          )}
           {parent && <span title="Part of">↳ {parent.title}</span>}
           {childCount > 0 && <span>{childCount} sub</span>}
         </span>
