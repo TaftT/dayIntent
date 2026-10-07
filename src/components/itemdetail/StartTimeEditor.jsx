@@ -11,7 +11,7 @@ export function StartTimeEditor({ time, onChange }) {
     <div className="start-time-editor">
       <button
         type="button"
-        className="icon-button"
+        className="btn btn-subtle stepper-btn"
         onClick={decrement}
         disabled={minutes <= 0}
         aria-label="Earlier by 10 minutes"
@@ -27,7 +27,7 @@ export function StartTimeEditor({ time, onChange }) {
       </select>
       <button
         type="button"
-        className="icon-button"
+        className="btn btn-subtle stepper-btn"
         onClick={increment}
         disabled={minutes >= LAST_SLOT_MINUTES}
         aria-label="Later by 10 minutes"
