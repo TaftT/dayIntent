@@ -99,7 +99,8 @@ export function BacklogListItem({ row, rank, draggable, canSchedule, selection }
           {selected ? '✓' : ''}
         </span>
       )}
-      {!selecting && (
+      {/* A series has no single done state — only its occurrences do. */}
+      {!selecting && !item.recurrence && (
       <button
         type="button"
         className={`backlog-check ${done ? 'checked' : ''}`}
@@ -121,6 +122,7 @@ export function BacklogListItem({ row, rank, draggable, canSchedule, selection }
           {category && <span>{category.name}</span>}
           <span>{item.durationMinutes != null ? formatMinutesShort(item.durationMinutes) : 'Reminder'}</span>
           {markedFromBacklog && <span className="backlog-marked-done">✓ Marked done from backlog</span>}
+          {item.recurrence && !nextInstance && <span>No upcoming occurrences</span>}
           {when && (
             <button
               type="button"
