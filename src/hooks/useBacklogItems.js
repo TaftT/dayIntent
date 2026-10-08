@@ -48,17 +48,25 @@ function classify(items, allInstances, today) {
     // (e.g. today's, for a daily series) is skipped so the list shows what's
     // actually left. Falls back to a completed one if nothing else is upcoming.
     const pending = upcoming.filter((i) => (i.percentComplete ?? 0) < 100)
-    const nextInstance =
-      pending.find((i) => i.date >= today) ?? pending[0] ?? upcoming.find((i) => i.date >= today) ?? upcoming[0] ?? null
+    // A recurring series only ever points at an occurrence from today onward,
+    // and only one still to do: a stale past occurrence (or an already-done
+    // one) must never stand in for the series, or it shows up as "done" /
+    // overdue. If nothing is left to do, the series simply has no "next".
+    const nextInstance = item.recurrence
+      ? (pending.find((i) => i.date >= today) ?? null)
+      : (pending.find((i) => i.date >= today) ?? pending[0] ?? upcoming.find((i) => i.date >= today) ?? upcoming[0] ?? null)
     const lastFinalized = insts
       .filter((i) => i.finalized)
       .sort((a, b) => b.date.localeCompare(a.date))[0]
 
     // A scheduled item's progress lives on its occurrence; an unscheduled
     // one's lives on the item itself.
-    const percent = item.isUnscheduled
-      ? (item.percentComplete ?? 0)
-      : (nextInstance?.percentComplete ?? lastFinalized?.percentComplete ?? item.percentComplete ?? 0)
+    // A series is never "done" — only its individual occurrences are.
+    const percent = item.recurrence
+      ? (nextInstance?.percentComplete ?? 0)
+      : item.isUnscheduled
+        ? (item.percentComplete ?? 0)
+        : (nextInstance?.percentComplete ?? lastFinalized?.percentComplete ?? item.percentComplete ?? 0)
 
     const tabs = new Set()
     if (item.recurrence) {
