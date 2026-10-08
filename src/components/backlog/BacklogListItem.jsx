@@ -66,6 +66,16 @@ export function BacklogListItem({ row, rank, draggable, canSchedule, selection }
       ? `✓ Done ${isTodayStr(row.completedDate) ? 'today' : formatShortDate(row.completedDate)}`
       : null
     : whenLabel(nextInstance)
+  // A scheduled task opens with its occurrence (so the modal shows its day and
+  // time and saving moves that occurrence); one that isn't on the calendar
+  // opens as a plain backlog item.
+  const openItem = () =>
+    openModal(
+      'itemDetail',
+      nextInstance && !item.isUnscheduled && !item.recurrence
+        ? { itemId: item.id, instanceId: nextInstance.id, date: nextInstance.date, time: nextInstance.time }
+        : { itemId: item.id }
+    )
   const markedFromBacklog = done && !row.completedDate
 
   // Synced items are hidden while sync is locked (see useBacklogItems); this
@@ -77,7 +87,7 @@ export function BacklogListItem({ row, rank, draggable, canSchedule, selection }
       ref={setNodeRef}
       style={style}
       className={`backlog-list-item ${done ? 'is-done' : ''} ${isDragging ? 'dragging' : ''} ${selected ? 'is-selected' : ''}`}
-      onClick={() => (selecting ? selection.toggle(item.id) : openModal('itemDetail', { itemId: item.id }))}
+      onClick={() => (selecting ? selection.toggle(item.id) : openItem())}
     >
       {draggable && !selecting && (
         <button
