@@ -3081,3 +3081,14 @@
 .category-sync-choice .manager-hint {
   margin: 0;
 }
+
+.item-detail-save-bottom {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.item-detail-save-bottom .btn {
+  flex: 1;
+  padding: 12px 14px;
+}

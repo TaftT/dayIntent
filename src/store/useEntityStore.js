@@ -7,15 +7,11 @@ import { reorderWithinGroup } from '../utils/groupOrder.js'
 import { todayStr, addDaysStr, timeStrToMinutes } from '../utils/dateUtils.js'
 import { DEFAULT_COLOR_SWATCHES } from '../utils/colorUtils.js'
 
-// True once an occurrence is entirely in the past: an earlier date, or today
-// with its end time (start + duration) already behind the clock. All-day
-// items (no time) only count once their date has passed.
-export function hasElapsed(date, time, durationMinutes = 0) {
-  const today = todayStr()
-  if (date < today) return true
-  if (date > today || !time) return false
-  const now = new Date()
-  return timeStrToMinutes(time) + (durationMinutes || 0) <= now.getHours() * 60 + now.getMinutes()
+// True for an occurrence on an earlier day — those are history, so they're
+// marked complete when created or moved there. Anything on today (even at a
+// time that has already passed) or later is left as it was entered.
+export function isPastDay(date) {
+  return date < todayStr()
 }
 
 const SLEEP_CATEGORY_NAME = 'Sleep'
@@ -325,7 +321,7 @@ export const useEntityStore = create((set, get) => ({
     // next rollover pass) makes getDisplayStatus show it as done right away;
     // rollover still finalizes it into locked-in history the normal way.
     const time = isAllDay ? null : (opts.time ?? '12:00')
-    const isPastDate = hasElapsed(date, time, item.durationMinutes)
+    const isPastDate = isPastDay(date)
 
     if (!item.recurrence) {
       const existing = await repo.getInstancesForItem(itemId)
@@ -352,7 +348,7 @@ export const useEntityStore = create((set, get) => ({
 
   moveInstanceTime: async (instanceId, newTime) => {
     const inst = await repo.getInstance(instanceId)
-    const elapsed = hasElapsed(inst.date, newTime, inst.durationMinutes)
+    const elapsed = isPastDay(inst.date)
     const updated = await repo.saveInstance({
       ...inst,
       time: newTime,
@@ -378,7 +374,7 @@ export const useEntityStore = create((set, get) => ({
       // percent reset — otherwise it shows up already "completed" on the new
       // date before any work has happened there. A still-pending instance
       // just being rescheduled keeps whatever in-progress percent it had.
-      percentComplete: hasElapsed(newDate, inst.isAllDay ? null : inst.time, inst.durationMinutes)
+      percentComplete: isPastDay(newDate)
         ? 100
         : inst.finalized ? 0 : inst.percentComplete,
       finalized: false,
