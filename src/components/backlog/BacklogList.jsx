@@ -51,7 +51,10 @@ export function BacklogList({ rows: allRows, tab, view, groups, groupStats, filt
   const [collapsed, setCollapsed] = useState(() => new Set())
   // Only the To do tab is a priority list, so only there can rows be dragged.
   const draggable = tab === 'todo' && !selection.active
-  const grouped = tab === 'todo' && view === 'grouped'
+  // Grouping applies on every tab (Scheduled, In progress, Done, Recurring too);
+  // only the To do tab is a priority list, so only it shows rank numbers and
+  // lists empty groups.
+  const grouped = view === 'grouped'
   const rows = tab === 'done' ? allRows.slice(0, doneLimit) : allRows
   const hiddenDone = tab === 'done' ? allRows.length - rows.length : 0
   const sortableIds = rows.filter((row) => row.type === 'item').map((row) => row.item.id)
@@ -66,20 +69,25 @@ export function BacklogList({ rows: allRows, tab, view, groups, groupStats, filt
       return next
     })
 
-  const renderItem = (row, rank) => (
-    <BacklogListItem
-      key={row.item.id}
-      row={row}
-      rank={tab === 'todo' ? rank : null}
-      draggable={draggable}
-      canSchedule={canSchedule}
-      selection={selection}
-    />
-  )
+  const renderItem = (row, rank) =>
+    row.type === 'instance' ? (
+      <BacklogInstanceRow key={row.instance.id} row={row} />
+    ) : (
+      <BacklogListItem
+        key={row.item.id}
+        row={row}
+        rank={tab === 'todo' ? rank : null}
+        draggable={draggable}
+        canSchedule={canSchedule}
+        selection={selection}
+      />
+    )
 
   let body
   if (grouped) {
-    const sections = buildGroupSections(rows, groups, !filtersActive)
+    // A group with nothing to show is only listed on the To do tab (so a group
+    // you just made is visible there); other tabs list the groups that have rows.
+    const sections = buildGroupSections(rows, groups, tab === 'todo' && !filtersActive)
     const hasNamedGroups = sections.some((s) => s.group)
     body = sections.map(({ group, entries }) => {
       const isCollapsed = group !== null && collapsed.has(group.id)
@@ -128,7 +136,7 @@ export function BacklogList({ rows: allRows, tab, view, groups, groupStats, filt
     <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
       <div className="backlog-list">
         {tab === 'todo' && !selection.active && <BacklogQuickAdd />}
-        {rows.length === 0 && !(grouped && groups.length > 0 && !filtersActive) && (
+        {rows.length === 0 && !(grouped && tab === 'todo' && groups.length > 0 && !filtersActive) && (
           <div className="empty-state">{EMPTY_TEXT[tab]}</div>
         )}
         {body}

@@ -11,6 +11,7 @@ import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 export function BacklogInstanceRow({ row }) {
   const { item, instance } = row
   const category = useCategoryById(item.categoryId)
+  const group = useEntityStore((s) => s.groups.find((g) => g.id === item.groupId) ?? null)
   const navigate = useNavigate()
   const flashItem = useAppStore((s) => s.flashItem)
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
@@ -53,6 +54,12 @@ export function BacklogInstanceRow({ row }) {
           <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
           {category && <span>{category.name}</span>}
           <span>{item.durationMinutes != null ? formatMinutesShort(item.durationMinutes) : 'Reminder'}</span>
+          {group && (
+            <span className="backlog-group-chip" title="Group">
+              <span className="category-dot" style={{ background: group.color }} />
+              {group.name}
+            </span>
+          )}
           <button
             type="button"
             className="backlog-when"
