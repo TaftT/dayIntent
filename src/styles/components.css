@@ -1058,13 +1058,13 @@
 .start-time-editor {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
+  /* it has a row to itself, so it fills it (like the duration stepper) */
+  flex: 1 1 100%;
+  width: 100%;
 }
 
 .start-time-editor .stepper-btn {
-  width: 36px;
-  height: 36px;
-  font-size: 1.2rem;
   flex-shrink: 0;
 }
 
@@ -1073,6 +1073,12 @@
 }
 
 .start-time-editor select {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  text-align: center;
+  text-align-last: center;
+  font-weight: 500;
   padding: 4px 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
