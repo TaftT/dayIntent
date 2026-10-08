@@ -11,24 +11,25 @@ export function GoogleCalendarButton({ task, sharedAt, onShared }) {
 
   if (!task.date) {
     return (
-      <button type="button" className="btn btn-subtle gcal-btn" disabled title="Give it a date first">
-        Add to Google Calendar
+      <button type="button" className="gcal-btn" disabled title="Give it a date first">
+        + Google Calendar
       </button>
     )
   }
 
   return (
-    <div className="gcal-row">
+    <>
       <a
-        className="btn btn-subtle gcal-btn"
+        className="gcal-btn"
         href={buildGoogleCalendarUrl(task)}
         target="_blank"
         rel="noopener noreferrer"
         onClick={onShared}
+        title={sharedAt ? `Shared ${sharedOn} — tap to add it again` : 'Add this to a Google Calendar'}
       >
-        {sharedAt ? 'Add to Google Calendar again' : 'Add to Google Calendar'}
+        {sharedAt ? '✓ Google Calendar · again' : '+ Google Calendar'}
       </a>
-      {sharedOn && <span className="gcal-shared-note">✓ Shared {sharedOn}</span>}
-    </div>
+      {sharedOn && <span className="gcal-shared-note">Shared {sharedOn}</span>}
+    </>
   )
 }

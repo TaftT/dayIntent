@@ -84,6 +84,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
     () =>
       Boolean(recurrence) ||
       Boolean(existingItem?.groupId) ||
+      Boolean(existingItem?.googleSharedAt) ||
       isHabit ||
       (!isCreate && percentComplete > 0) ||
       notes.replace(/<[^>]*>|&nbsp;/g, '').trim() !== '' ||
@@ -416,11 +417,32 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
             </ToggleButton>
           )}
 
-          {signedIn && (
-            <ToggleButton pressed={syncEnabled} onChange={setSyncEnabled}>
-              Sync to cloud
-            </ToggleButton>
-          )}
+          <div className="item-detail-toggle-row">
+            {signedIn && (
+              <ToggleButton pressed={syncEnabled} onChange={setSyncEnabled}>
+                Sync to cloud
+              </ToggleButton>
+            )}
+              <GoogleCalendarButton
+                task={{
+                  title,
+                  notes,
+                  date: date ? scheduledDate : null,
+                  time: startTime,
+                  durationMinutes: isAllDay ? effectiveDurationForShare : durationMinutes,
+                  isAllDay,
+                  recurrence,
+                }}
+                sharedAt={googleSharedAt}
+                onShared={() => {
+                  const now = new Date().toISOString()
+                  setGoogleSharedAt(now)
+                  // An existing task is marked right away (even if the form is never
+                  // saved); a brand-new one is marked when it's saved.
+                  if (itemId) updateItem(itemId, { googleSharedAt: now })
+                }}
+              />
+          </div>
 
           <GroupSection groupId={groupId} onChange={setGroupId} />
 
@@ -431,26 +453,6 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
         {/* Same save as the header, repeated at the bottom so it's in reach
             after scrolling a long form. A recurring occurrence gets both
             choices side by side instead of a menu. */}
-        <GoogleCalendarButton
-          task={{
-            title,
-            notes,
-            date: date ? scheduledDate : null,
-            time: startTime,
-            durationMinutes: isAllDay ? effectiveDurationForShare : durationMinutes,
-            isAllDay,
-            recurrence,
-          }}
-          sharedAt={googleSharedAt}
-          onShared={() => {
-            const now = new Date().toISOString()
-            setGoogleSharedAt(now)
-            // An existing task is marked right away (even if the form is never
-            // saved); a brand-new one is marked when it's saved.
-            if (itemId) updateItem(itemId, { googleSharedAt: now })
-          }}
-        />
-
         <div className="item-detail-save-bottom">
           {isRecurringInstance ? (
             <>
