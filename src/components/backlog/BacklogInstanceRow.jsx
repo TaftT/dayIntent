@@ -54,6 +54,7 @@ export function BacklogInstanceRow({ row }) {
           <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
           {category && <span>{category.name}</span>}
           <span>{item.durationMinutes != null ? formatMinutesShort(item.durationMinutes) : 'Reminder'}</span>
+          {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
           {group && (
             <span className="backlog-group-chip" title="Group">
               <span className="category-dot" style={{ background: group.color }} />

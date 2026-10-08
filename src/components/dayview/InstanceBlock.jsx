@@ -121,6 +121,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
             {STATUS_LABEL[status] || '○'}
           </button>
           <span className="instance-line-title">{item.title}</span>
+          {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
           {signedIn && item.syncEnabled && (
             <span className="instance-sync-badge" title="Synced to cloud">☁</span>
           )}
@@ -180,6 +181,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
       </button>
       <div className="instance-block-title">
         {item.title}
+        {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
         {signedIn && item.syncEnabled && (
           <span className="instance-sync-badge" title="Synced to cloud">☁</span>
         )}

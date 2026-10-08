@@ -10,6 +10,7 @@ import { PercentCompleteSlider } from './PercentCompleteSlider.jsx'
 import { CategoryPicker } from './CategoryPicker.jsx'
 import { RecurrenceEditor } from './RecurrenceEditor.jsx'
 import { GroupSection } from './GroupSection.jsx'
+import { GoogleCalendarButton } from './GoogleCalendarButton.jsx'
 import { RichTextEditor } from '../shared/RichTextEditor.jsx'
 import { useItem } from '../../hooks/useItem.js'
 import { useInstance } from '../../hooks/useInstance.js'
@@ -72,6 +73,8 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   // won't be pushed to the cloud on a later sign-in.
   const [syncEnabled, setSyncEnabled] = useState(existingItem?.syncEnabled ?? signedIn)
   const [groupId, setGroupId] = useState(existingItem?.groupId ?? '')
+  // When this task was last sent to Google Calendar (see GoogleCalendarButton).
+  const [googleSharedAt, setGoogleSharedAt] = useState(existingItem?.googleSharedAt ?? null)
   const [error, setError] = useState('')
   const [saveMenuOpen, setSaveMenuOpen] = useState(false)
   // Notes, recurrence, habit, sync and links stay tucked away until asked for.
@@ -81,6 +84,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
     () =>
       Boolean(recurrence) ||
       Boolean(existingItem?.groupId) ||
+      Boolean(existingItem?.googleSharedAt) ||
       isHabit ||
       (!isCreate && percentComplete > 0) ||
       notes.replace(/<[^>]*>|&nbsp;/g, '').trim() !== '' ||
@@ -151,6 +155,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
       isHabit: recurrence ? isHabit : false,
       syncEnabled,
       groupId: groupId || null,
+      googleSharedAt,
     }
 
     try {
@@ -221,6 +226,8 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
     await unscheduleInstance(instanceId)
     closeModal()
   }
+
+  const effectiveDurationForShare = allDayDaysFromMinutes(durationMinutes) * MINUTES_PER_DAY
 
   const handleAllDayChange = (next) => {
     setIsAllDay(next)
@@ -410,11 +417,32 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
             </ToggleButton>
           )}
 
-          {signedIn && (
-            <ToggleButton pressed={syncEnabled} onChange={setSyncEnabled}>
-              Sync to cloud
-            </ToggleButton>
-          )}
+          <div className="item-detail-toggle-row">
+            {signedIn && (
+              <ToggleButton pressed={syncEnabled} onChange={setSyncEnabled}>
+                Sync to cloud
+              </ToggleButton>
+            )}
+              <GoogleCalendarButton
+                task={{
+                  title,
+                  notes,
+                  date: date ? scheduledDate : null,
+                  time: startTime,
+                  durationMinutes: isAllDay ? effectiveDurationForShare : durationMinutes,
+                  isAllDay,
+                  recurrence,
+                }}
+                sharedAt={googleSharedAt}
+                onShared={() => {
+                  const now = new Date().toISOString()
+                  setGoogleSharedAt(now)
+                  // An existing task is marked right away (even if the form is never
+                  // saved); a brand-new one is marked when it's saved.
+                  if (itemId) updateItem(itemId, { googleSharedAt: now })
+                }}
+              />
+          </div>
 
           <GroupSection groupId={groupId} onChange={setGroupId} />
 
