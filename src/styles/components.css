@@ -3197,6 +3197,12 @@
   flex-shrink: 0;
 }
 
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .gcal-needs-date {
   color: var(--color-text-muted);
   font-weight: 400;

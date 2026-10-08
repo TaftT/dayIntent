@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Modal } from '../shared/Modal.jsx'
 import { Button } from '../shared/Button.jsx'
 import { ToggleButton } from '../shared/ToggleButton.jsx'
@@ -29,6 +30,9 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   const existingItem = useItem(itemId)
   const instance = useInstance(instanceId)
   const closeModal = useAppStore((s) => s.closeModal)
+  const flashItem = useAppStore((s) => s.flashItem)
+  const navigate = useNavigate()
+  const instancesForGoTo = useEntityStore((s) => s.allInstances)
   const signedIn = useAuthStore((s) => Boolean(s.user))
   const createItem = useEntityStore((s) => s.createItem)
   const updateItem = useEntityStore((s) => s.updateItem)
@@ -301,6 +305,24 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
     </>
   )
 
+  // "Go to": for a task that's on the calendar, jump to its day with the task
+  // highlighted — the occurrence being edited, else its next one, else its
+  // latest. (Leaving closes this form, like the ✕ does.)
+  const goToDate = (() => {
+    if (!existingItem || existingItem.isUnscheduled) return null
+    if (instance) return instance.date
+    const mine = instancesForGoTo
+      .filter((i) => i.itemId === existingItem.id)
+      .sort((a, b) => a.date.localeCompare(b.date))
+    if (mine.length === 0) return null
+    return (mine.find((i) => !i.finalized) ?? mine[mine.length - 1]).date
+  })()
+  const handleGoTo = () => {
+    closeModal()
+    flashItem(itemId)
+    navigate(`/day/${goToDate}`)
+  }
+
   // A recurring occurrence has two meanings of "save", so the header button
   // turns into a menu offering both; everywhere else it's a plain button.
   const saveButton = isRecurringInstance ? (
@@ -339,7 +361,16 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
     <Modal
       title={isCreate ? 'New Item' : 'Edit Item'}
       onClose={closeModal}
-      headerAction={saveButton}
+      headerAction={
+        <div className="modal-header-actions">
+          {goToDate && (
+            <Button variant="subtle" onClick={handleGoTo} title="Open this task on its day">
+              Go to
+            </Button>
+          )}
+          {saveButton}
+        </div>
+      }
     >
       <div className="item-detail-form">
         <input
