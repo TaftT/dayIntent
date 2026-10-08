@@ -3197,6 +3197,11 @@
   flex-shrink: 0;
 }
 
+.gcal-needs-date {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
 /* Six backlog tabs on a phone: a touch smaller so they all fit without scrolling */
 @media (max-width: 600px) {
   .backlog-tab {
