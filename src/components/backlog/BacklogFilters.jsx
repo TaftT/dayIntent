@@ -47,7 +47,7 @@ export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
           ))}
         </select>
       </div>
-      {filters.tab === 'todo' && (
+      {(
         <div className="backlog-view-row">
           <div className="backlog-view-toggle" role="group" aria-label="View">
             {[
@@ -75,13 +75,16 @@ export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
             >
               <Icon name="categories" size={18} />
             </button>
-            <button
-              type="button"
-              className={`btn btn-subtle backlog-select-btn ${selecting ? 'active' : ''}`}
-              onClick={onToggleSelecting}
-            >
-              {selecting ? 'Done selecting' : 'Select'}
-            </button>
+            {/* Recurring rows are a series' next occurrence, not selectable tasks. */}
+            {filters.tab !== 'recurring' && (
+              <button
+                type="button"
+                className={`btn btn-subtle backlog-select-btn ${selecting ? 'active' : ''}`}
+                onClick={onToggleSelecting}
+              >
+                {selecting ? 'Done selecting' : 'Select'}
+              </button>
+            )}
           </div>
         </div>
       )}
