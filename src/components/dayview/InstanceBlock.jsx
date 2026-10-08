@@ -104,7 +104,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
           top: linePx - REMINDER_LABEL_HEIGHT,
           height: REMINDER_LABEL_HEIGHT,
           transform: dragTransform,
-          zIndex: isMoving ? 20 : 1,
+          zIndex: isMoving ? 30 : 15,
         }}
         {...listeners}
         {...attributes}
