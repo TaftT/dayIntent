@@ -23,8 +23,7 @@ export function addDaysStr(dateStr, n) {
 }
 
 /** @returns {{from: string, to: string}} the current calendar week so far: this Sunday through today */
-export function currentWeekRange() {
-  const now = new Date()
+export function currentWeekRange(now = new Date()) {
   return {
     from: toDateStr(startOfWeek(now, { weekStartsOn: 0 })),
     to: toDateStr(now),
