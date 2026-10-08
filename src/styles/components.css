@@ -3196,3 +3196,8 @@
   line-height: 1;
   flex-shrink: 0;
 }
+
+.gcal-needs-date {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
