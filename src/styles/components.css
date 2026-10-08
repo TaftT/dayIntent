@@ -537,10 +537,16 @@
   gap: 4px;
   font-size: 0.72rem;
   line-height: 1.1;
-  padding-bottom: 2px;
+  padding: 0 6px 2px;
   color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
+  /* Reminders sit above timed blocks (see InstanceBlock z-index), so the label
+     needs its own backing to stay readable when it lands on top of one. */
+  align-self: flex-start;
+  max-width: 100%;
+  background: var(--color-bg);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 
 .instance-line-title {
@@ -1058,13 +1064,13 @@
 .start-time-editor {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
+  /* it has a row to itself, so it fills it (like the duration stepper) */
+  flex: 1 1 100%;
+  width: 100%;
 }
 
 .start-time-editor .stepper-btn {
-  width: 36px;
-  height: 36px;
-  font-size: 1.2rem;
   flex-shrink: 0;
 }
 
@@ -1073,6 +1079,12 @@
 }
 
 .start-time-editor select {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  text-align: center;
+  text-align-last: center;
+  font-weight: 500;
   padding: 4px 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -3091,4 +3103,41 @@
 .item-detail-save-bottom .btn {
   flex: 1;
   padding: 12px 14px;
+}
+
+/* Stats: step the selected range back/forward by its own length */
+
+.stats-range-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.stats-range-label {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+}
+
+.stats-range-arrow {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-alt);
+  color: var(--color-text);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.stats-range-arrow:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.stats-range-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
