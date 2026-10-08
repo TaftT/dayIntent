@@ -421,6 +421,30 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
           <div className="item-detail-actions">{footer}</div>
           </>
         )}
+
+        {/* Same save as the header, repeated at the bottom so it's in reach
+            after scrolling a long form. A recurring occurrence gets both
+            choices side by side instead of a menu. */}
+        <div className="item-detail-save-bottom">
+          {isRecurringInstance ? (
+            <>
+              <Button variant="primary" onClick={() => handleSave(false)}>
+                Save this event
+              </Button>
+              <Button
+                variant="subtle"
+                onClick={() => handleSave(true)}
+                title="Applies time, duration and all-day changes to every future occurrence, not just this one"
+              >
+                Save for all
+              </Button>
+            </>
+          ) : (
+            <Button variant="primary" onClick={() => handleSave(false)}>
+              Save
+            </Button>
+          )}
+        </div>
       </div>
     </Modal>
   )

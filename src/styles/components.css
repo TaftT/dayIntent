@@ -3094,6 +3094,17 @@
   margin: 0;
 }
 
+.item-detail-save-bottom {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.item-detail-save-bottom .btn {
+  flex: 1;
+  padding: 12px 14px;
+}
+
 /* Stats: step the selected range back/forward by its own length */
 
 .stats-range-nav {
