@@ -123,6 +123,7 @@ export function BacklogListItem({ row, rank, draggable, canSchedule, selection }
           <span>{item.durationMinutes != null ? formatMinutesShort(item.durationMinutes) : 'Reminder'}</span>
           {markedFromBacklog && <span className="backlog-marked-done">✓ Marked done from backlog</span>}
           {item.recurrence && !nextInstance && <span>No upcoming occurrences</span>}
+          {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
           {when && (
             <button
               type="button"

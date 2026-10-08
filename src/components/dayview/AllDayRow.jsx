@@ -47,6 +47,7 @@ function AllDayChip({ instance, span }) {
         {status === 'completed' ? '✓' : '○'}
       </button>
       {item.title}
+      {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
       {span && <span className="all-day-chip-span"> · day {span.index}/{span.total}</span>}
     </div>
   )

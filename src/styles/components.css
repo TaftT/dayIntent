@@ -3141,3 +3141,47 @@
   opacity: 0.35;
   cursor: default;
 }
+
+/* Google Calendar sharing */
+
+.gcal-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.gcal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.gcal-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.gcal-shared-note {
+  font-size: 0.8rem;
+  color: #2f9e63;
+  font-weight: 600;
+}
+
+.gcal-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: #4285f4;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}

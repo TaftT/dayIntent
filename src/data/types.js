@@ -17,6 +17,7 @@
  * @property {string|null} categoryId
  * @property {number} percentComplete - 0-100
  * @property {string|null} groupId - id of the backlog Group this item belongs to (one group per item)
+ * @property {string|null} googleSharedAt - ISO time it was last sent to Google Calendar via the add-event link, or null
  * @property {string[]} parentIds
  * @property {string[]} childIds
  * @property {RecurrenceRule|null} recurrence
