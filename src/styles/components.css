@@ -3196,3 +3196,11 @@
   line-height: 1;
   flex-shrink: 0;
 }
+
+/* Six backlog tabs on a phone: a touch smaller so they all fit without scrolling */
+@media (max-width: 600px) {
+  .backlog-tab {
+    font-size: 0.68rem;
+    padding: 8px 1px;
+  }
+}

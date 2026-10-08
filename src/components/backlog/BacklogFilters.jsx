@@ -49,6 +49,8 @@ export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
       </div>
       {(
         <div className="backlog-view-row">
+          {/* The Groups tab is always grouped, so the toggle has nothing to switch. */}
+          {filters.tab !== 'groups' ? (
           <div className="backlog-view-toggle" role="group" aria-label="View">
             {[
               ['list', 'List'],
@@ -65,6 +67,9 @@ export function BacklogFilters({ counts, selecting, onToggleSelecting }) {
               </button>
             ))}
           </div>
+          ) : (
+            <span />
+          )}
           <div className="backlog-view-actions">
             <button
               type="button"

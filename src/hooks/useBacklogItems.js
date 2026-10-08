@@ -15,6 +15,9 @@ export const BACKLOG_TABS = [
   { id: 'recurring', label: 'Recurring' },
   { id: 'progress', label: 'In progress' },
   { id: 'done', label: 'Done' },
+  // Every task that belongs to a group, whatever its status — one place to see
+  // a whole group at once (always shown grouped).
+  { id: 'groups', label: 'Groups' },
 ]
 
 // Category filter value meaning "only tasks with no category".
@@ -78,6 +81,8 @@ function classify(items, allInstances, today) {
       else tabs.add('scheduled')
       if (percent > 0) tabs.add('progress')
     }
+    // Group membership cuts across the status tabs above.
+    if (item.groupId) tabs.add('groups')
     // The day it was finished — only known when it was completed on a
     // calendar occurrence. A task ticked off straight from the backlog has no
     // trustworthy date (it may have been done long ago and just cleared), so
@@ -160,6 +165,9 @@ export function useBacklogItems(filters = {}) {
           ? nextKey(a.nextInstance).localeCompare(nextKey(b.nextInstance))
           : byOrder(a, b)
       )
+    } else if (tab === 'groups') {
+      // Unfinished first, finished last, each in priority order.
+      rows.sort((a, b) => (a.percent >= 100) - (b.percent >= 100) || byOrder(a, b))
     } else if (tab === 'done') {
       rows.sort(
         (a, b) =>
