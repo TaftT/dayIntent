@@ -11,9 +11,12 @@ export function GoogleCalendarButton({ task, sharedAt, onShared }) {
 
   if (!task.date) {
     return (
-      <button type="button" className="gcal-btn" disabled title="Give it a date first">
-        + Google Calendar
-      </button>
+      <>
+        <button type="button" className="gcal-btn" disabled>
+          + Google Calendar
+        </button>
+        <span className="gcal-shared-note gcal-needs-date">Schedule it first to add it</span>
+      </>
     )
   }
 

@@ -149,7 +149,17 @@ export function GroupDetailModal({ groupId }) {
                   <button
                     type="button"
                     className="group-detail-title"
-                    onClick={() => openModal('itemDetail', { itemId: item.id })}
+                    onClick={() => {
+                      const next = allInstances
+                        .filter((i) => i.itemId === item.id && !i.finalized)
+                        .sort((a, b) => a.date.localeCompare(b.date))[0]
+                      openModal(
+                        'itemDetail',
+                        next && !item.isUnscheduled && !item.recurrence
+                          ? { itemId: item.id, instanceId: next.id, date: next.date, time: next.time }
+                          : { itemId: item.id }
+                      )
+                    }}
                   >
                     {item.title}
                   </button>

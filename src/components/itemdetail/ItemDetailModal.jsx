@@ -233,6 +233,37 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
 
   const effectiveDurationForShare = allDayDaysFromMinutes(durationMinutes) * MINUTES_PER_DAY
 
+  // What "Add to Google Calendar" sends. Opened from the day view the modal is
+  // handed the day (or the occurrence) and the form fields are the truth. Opened
+  // from the backlog list it has neither, so a scheduled task falls back to its
+  // own next occurrence — otherwise the button was disabled for exactly those.
+  const allInstances = useEntityStore((s) => s.allInstances)
+  const nextOccurrence =
+    existingItem && !existingItem.isUnscheduled && !date && !instance
+      ? allInstances
+          .filter((i) => i.itemId === existingItem.id && !i.finalized)
+          .sort((a, b) => a.date.localeCompare(b.date))[0]
+      : null
+  const shareTask = nextOccurrence
+    ? {
+        title,
+        notes,
+        date: nextOccurrence.date,
+        time: nextOccurrence.time,
+        durationMinutes: nextOccurrence.durationMinutes ?? durationMinutes,
+        isAllDay: nextOccurrence.isAllDay,
+        recurrence,
+      }
+    : {
+        title,
+        notes,
+        date: date || instance ? scheduledDate : null,
+        time: startTime,
+        durationMinutes: isAllDay ? effectiveDurationForShare : durationMinutes,
+        isAllDay,
+        recurrence,
+      }
+
   const handleAllDayChange = (next) => {
     setIsAllDay(next)
     // Switching in/out of all-day swaps the meaning of the duration field, so
@@ -455,15 +486,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
               </ToggleButton>
             )}
               <GoogleCalendarButton
-                task={{
-                  title,
-                  notes,
-                  date: date ? scheduledDate : null,
-                  time: startTime,
-                  durationMinutes: isAllDay ? effectiveDurationForShare : durationMinutes,
-                  isAllDay,
-                  recurrence,
-                }}
+                task={shareTask}
                 sharedAt={googleSharedAt}
                 onShared={() => {
                   const now = new Date().toISOString()
