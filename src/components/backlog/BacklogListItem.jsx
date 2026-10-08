@@ -154,7 +154,7 @@ export function BacklogListItem({ row, rank, draggable, canSchedule, selection }
         )}
       </div>
       {percent > 0 && percent < 100 && <span className="backlog-item-percent">{percent}%</span>}
-      {canSchedule && !done && !selecting && <ScheduleMenu item={item} instanceId={nextInstance?.id} />}
+      {canSchedule && !done && !selecting && !item.recurrence && <ScheduleMenu item={item} instanceId={nextInstance?.id} />}
     </div>
   )
 }

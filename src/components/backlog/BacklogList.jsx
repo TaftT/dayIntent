@@ -11,6 +11,7 @@ const EMPTY_TEXT = {
   recurring: 'No recurring tasks yet.',
   progress: 'Nothing in progress.',
   done: 'Nothing completed yet.',
+  groups: 'No groups yet — make one from Organize, or select tasks and tap Group….',
 }
 
 // The Done tab can grow without bound, so it only renders the most recent
@@ -25,7 +26,7 @@ const DONE_PAGE_SIZE = 25
  * to show still get a (empty) section unless a search/filter is narrowing the
  * list, so a group you just created is visible.
  */
-function buildGroupSections(rows, groups, showEmpty) {
+function buildGroupSections(rows, groups, showEmpty, includeLoose = true) {
   const known = new Set(groups.map((g) => g.id))
   const byGroup = new Map()
   const loose = []
@@ -42,7 +43,7 @@ function buildGroupSections(rows, groups, showEmpty) {
   const sections = groups
     .filter((g) => showEmpty || byGroup.has(g.id))
     .map((group) => ({ group, entries: byGroup.get(group.id) ?? [] }))
-  if (loose.length > 0 || sections.length === 0) sections.push({ group: null, entries: loose })
+  if (includeLoose && (loose.length > 0 || sections.length === 0)) sections.push({ group: null, entries: loose })
   return sections
 }
 
@@ -54,11 +55,13 @@ export function BacklogList({ rows: allRows, tab, view, groups, groupStats, filt
   // Grouping applies on every tab (Scheduled, In progress, Done, Recurring too);
   // only the To do tab is a priority list, so only it shows rank numbers and
   // lists empty groups.
-  const grouped = view === 'grouped'
+  // The Groups tab is always grouped, and shows only groups (no "No group" section).
+  const isGroupsTab = tab === 'groups'
+  const grouped = view === 'grouped' || isGroupsTab
   const rows = tab === 'done' ? allRows.slice(0, doneLimit) : allRows
   const hiddenDone = tab === 'done' ? allRows.length - rows.length : 0
   const sortableIds = rows.filter((row) => row.type === 'item').map((row) => row.item.id)
-  const canSchedule = tab === 'todo' || tab === 'scheduled' || tab === 'progress'
+  const canSchedule = tab === 'todo' || tab === 'scheduled' || tab === 'progress' || tab === 'groups'
   let lastSection = null
 
   const toggleCollapsed = (group) =>
@@ -87,7 +90,7 @@ export function BacklogList({ rows: allRows, tab, view, groups, groupStats, filt
   if (grouped) {
     // A group with nothing to show is only listed on the To do tab (so a group
     // you just made is visible there); other tabs list the groups that have rows.
-    const sections = buildGroupSections(rows, groups, tab === 'todo' && !filtersActive)
+    const sections = buildGroupSections(rows, groups, (tab === 'todo' || isGroupsTab) && !filtersActive, !isGroupsTab)
     const hasNamedGroups = sections.some((s) => s.group)
     body = sections.map(({ group, entries }) => {
       const isCollapsed = group !== null && collapsed.has(group.id)
@@ -136,7 +139,7 @@ export function BacklogList({ rows: allRows, tab, view, groups, groupStats, filt
     <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
       <div className="backlog-list">
         {tab === 'todo' && !selection.active && <BacklogQuickAdd />}
-        {rows.length === 0 && !(grouped && tab === 'todo' && groups.length > 0 && !filtersActive) && (
+        {rows.length === 0 && !(grouped && (tab === 'todo' || isGroupsTab) && groups.length > 0 && !filtersActive) && (
           <div className="empty-state">{EMPTY_TEXT[tab]}</div>
         )}
         {body}
