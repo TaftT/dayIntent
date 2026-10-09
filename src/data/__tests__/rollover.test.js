@@ -181,3 +181,30 @@ describe('getDisplayStatus', () => {
     expect(getDisplayStatus(inst)).toBe('pending')
   })
 })
+
+describe('partial progress is never lost at end of day', () => {
+  it('finalizes as worked_on when an instance created with a 0 baseline got partial progress', async () => {
+    const item = await repo.saveItem({ title: 'Task' })
+    // instances are now created with startPercent 0, so progress added later that day always counts
+    const inst = await repo.saveInstance({ itemId: item.id, date: '2026-08-17', startPercent: 0, percentComplete: 40 })
+
+    await runRollover('2026-08-19')
+
+    const finalized = await repo.getInstance(inst.id)
+    expect(finalized.status).toBe('worked_on')
+  })
+
+  it('still ghosts a day with no progress beyond what was carried in', async () => {
+    const item = await repo.saveItem({ title: 'Task' })
+    const inst = await repo.saveInstance({ itemId: item.id, date: '2026-08-17', startPercent: 40, percentComplete: 40 })
+
+    await runRollover('2026-08-19')
+
+    expect((await repo.getInstance(inst.id)).status).toBe('ghost')
+  })
+
+  it('shows any progress as in progress even before a baseline exists', () => {
+    expect(getDisplayStatus({ finalized: false, percentComplete: 30, startPercent: null })).toBe('in_progress')
+    expect(getDisplayStatus({ finalized: false, percentComplete: 0, startPercent: null })).toBe('pending')
+  })
+})

@@ -402,6 +402,9 @@ export const useEntityStore = create((set, get) => ({
       isAllDay,
       notes: item.notes,
       percentComplete: isPastDate ? 100 : item.percentComplete,
+      // The percent it arrives with is the baseline; anything added on this day
+      // counts as work done that day (and survives the end-of-day rollover).
+      startPercent: isPastDate ? 0 : (item.percentComplete ?? 0),
     })
     await repo.saveItem({ id: itemId, isUnscheduled: false })
     await get().refreshItems()
@@ -443,7 +446,7 @@ export const useEntityStore = create((set, get) => ({
         : inst.finalized ? 0 : inst.percentComplete,
       finalized: false,
       status: 'pending',
-      startPercent: null,
+      startPercent: 0,
       finalPercent: null,
     })
     await clearUnscheduledFlag(inst.itemId)

@@ -150,7 +150,8 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
     zIndex: isMoving ? 20 : 1 + cappedStagger,
     // A block stacked on another is slightly see-through so the one beneath
     // reads through it, on top of the strips left visible at its sides.
-    opacity: cappedStagger > 0 ? 0.88 : status === 'worked_on' || status === 'in_progress' ? 0.85 : 1,
+    // Partly-done blocks stay fully solid (the half circle shows the progress).
+    opacity: cappedStagger > 0 ? 0.88 : 1,
     ...staggerStyle,
   }
 

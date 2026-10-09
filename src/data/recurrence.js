@@ -91,7 +91,7 @@ export async function ensureInstancesGenerated(item, today, horizonDays = GENERA
       isAllDay: !item.recurrence.time,
       notes: item.notes, // seeded from the template, then independent per occurrence from here on
       percentComplete: 0, // every occurrence of a series starts fresh, independent of the others
-      startPercent: null,
+      startPercent: 0, // baseline for "did you do any work this day" — every occurrence starts at 0
       status: 'pending',
       finalized: false,
       finalPercent: null,
