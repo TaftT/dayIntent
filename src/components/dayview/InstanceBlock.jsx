@@ -7,16 +7,9 @@ import { useAppStore } from '../../store/useAppStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { getDisplayStatus } from '../../data/rollover.js'
 import { formatTimeLabel, timeStrToMinutes } from '../../utils/dateUtils.js'
+import { StatusCircle } from './StatusCircle.jsx'
 import { minutesToPx, MIN_BLOCK_HEIGHT_PX, DAY_HEIGHT, overlapRightInset, overlapLeftOffset } from './gridConstants.js'
 import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
-
-const STATUS_LABEL = {
-  completed: '✓',
-  worked_on: '◐',
-  ghost: '○',
-  in_progress: '◐',
-  pending: '',
-}
 
 const REMINDER_LABEL_HEIGHT = 18
 // Caps how far a block can cascade rightward when many instances overlap,
@@ -118,7 +111,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
             aria-label="Mark complete"
             title="Mark complete"
           >
-            {STATUS_LABEL[status] || '○'}
+            <StatusCircle status={status} size={18} />
           </button>
           <span className="instance-line-title">{item.title}</span>
           {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
@@ -179,7 +172,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
         aria-label="Mark complete"
         title="Mark complete"
       >
-        {STATUS_LABEL[status] || '○'}
+        <StatusCircle status={status} size={22} />
       </button>
       <div className="instance-block-title">
         {item.title}
