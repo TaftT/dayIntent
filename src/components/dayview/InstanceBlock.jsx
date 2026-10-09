@@ -7,7 +7,7 @@ import { useAppStore } from '../../store/useAppStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { getDisplayStatus } from '../../data/rollover.js'
 import { formatTimeLabel, timeStrToMinutes } from '../../utils/dateUtils.js'
-import { minutesToPx, MIN_BLOCK_HEIGHT_PX, DAY_HEIGHT, OVERLAP_STAGGER_PX } from './gridConstants.js'
+import { minutesToPx, MIN_BLOCK_HEIGHT_PX, DAY_HEIGHT, overlapRightInset, overlapLeftOffset } from './gridConstants.js'
 import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 
 const STATUS_LABEL = {
@@ -69,7 +69,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
   if (isLocked) return null
 
   const cappedStagger = Math.min(overlapIndex, MAX_OVERLAP_STAGGER)
-  const staggerStyle = cappedStagger > 0 ? { left: 6 + cappedStagger * OVERLAP_STAGGER_PX } : null
+  const staggerStyle = cappedStagger > 0 ? { left: 6 + overlapLeftOffset(cappedStagger), right: 6 + overlapRightInset(cappedStagger) } : null
 
   const status = getDisplayStatus(instance)
   // durationMinutes is null when the item is a reminder with no duration —
@@ -155,7 +155,9 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
     color: isSleep ? 'var(--color-text)' : status === 'ghost' ? 'var(--color-text-muted)' : textColor,
     transform: dragTransform,
     zIndex: isMoving ? 20 : 1 + cappedStagger,
-    opacity: status === 'worked_on' || status === 'in_progress' ? 0.85 : 1,
+    // A block stacked on another is slightly see-through so the one beneath
+    // reads through it, on top of the strips left visible at its sides.
+    opacity: cappedStagger > 0 ? 0.88 : status === 'worked_on' || status === 'in_progress' ? 0.85 : 1,
     ...staggerStyle,
   }
 
