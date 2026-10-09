@@ -45,7 +45,7 @@ function AllDayChip({ instance, span }) {
         }}
         aria-label="Mark complete"
       >
-        <StatusCircle status={status} size={18} />
+        <StatusCircle status={status} size={15} />
       </button>
       {item.title}
       {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}

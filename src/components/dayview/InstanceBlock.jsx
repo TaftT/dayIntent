@@ -111,7 +111,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
             aria-label="Mark complete"
             title="Mark complete"
           >
-            <StatusCircle status={status} size={18} />
+            <StatusCircle status={status} size={15} />
           </button>
           <span className="instance-line-title">{item.title}</span>
           {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
@@ -172,7 +172,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
         aria-label="Mark complete"
         title="Mark complete"
       >
-        <StatusCircle status={status} size={22} />
+        <StatusCircle status={status} size={18} />
       </button>
       <div className="instance-block-title">
         {item.title}
