@@ -193,6 +193,60 @@ export const useEntityStore = create((set, get) => ({
   //  - Cutoff at/before the series start -> clear the rule.
   // Either way habit tracking is turned off — a deleted series shouldn't keep
   // showing on the Stats page.
+  /**
+   * "This and following events": applies `patch` (title, category, rule, ...)
+   * to a recurring series from `fromDate` onward while leaving earlier
+   * occurrences exactly as they were. The series is split in two: the original
+   * item is capped the day before `fromDate` (keeping its past, with its old
+   * category etc.), and a copy carrying the edits takes over from `fromDate` —
+   * occurrences on/after that date, with their progress, move to the copy.
+   * If `fromDate` is the series' first day there is nothing earlier to protect,
+   * so it is a plain update.
+   */
+  splitSeriesFrom: async (itemId, fromDate, patch) => {
+    const old = await repo.getItem(itemId)
+    if (!old?.recurrence || fromDate <= (old.recurrence.startDate ?? '')) {
+      return get().updateItem(itemId, patch)
+    }
+
+    const ruleShape = (r) => JSON.stringify({ f: r?.freq, i: r?.interval, w: r?.byWeekday, t: r?.time })
+    const newRule = { ...(patch.recurrence ?? old.recurrence), startDate: fromDate }
+    const ruleChanged = ruleShape(newRule) !== ruleShape(old.recurrence)
+
+    const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = old
+    const created = await repo.saveItem({
+      ...rest,
+      ...patch,
+      recurrence: newRule,
+      parentIds: [],
+      childIds: [],
+      googleSharedAt: null,
+    })
+
+    // Occurrences carry their own copy of duration/all-day, so a changed
+    // length has to be pushed onto the ones that move (finished ones keep theirs).
+    const durationChanged = patch.durationMinutes !== undefined && patch.durationMinutes !== old.durationMinutes
+    const allDayChanged = patch.isAllDay !== undefined && patch.isAllDay !== old.isAllDay
+    const instances = await repo.getInstancesForItem(itemId)
+    for (const inst of instances.filter((i) => i.date >= fromDate)) {
+      const moved = { ...inst, itemId: created.id }
+      if (!inst.finalized && (durationChanged || allDayChanged)) {
+        moved.durationMinutes = patch.durationMinutes ?? inst.durationMinutes
+        moved.isAllDay = patch.isAllDay ?? inst.isAllDay
+        if (moved.isAllDay) moved.time = null
+      }
+      await repo.saveInstance(moved)
+    }
+    await repo.saveItem({ id: itemId, recurrence: { ...old.recurrence, endDate: addDaysStr(fromDate, -1) } })
+
+    if (ruleChanged) await regenerateFutureInstances(created, todayStr())
+
+    await get().refreshItems()
+    await get().reloadLoadedDates()
+    await get().refreshAllInstances()
+    return created
+  },
+
   deleteFutureSeries: async (itemId, fromDate) => {
     const cutoff = fromDate ?? todayStr()
     const item = await repo.getItem(itemId)

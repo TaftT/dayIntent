@@ -36,6 +36,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   const signedIn = useAuthStore((s) => Boolean(s.user))
   const createItem = useEntityStore((s) => s.createItem)
   const updateItem = useEntityStore((s) => s.updateItem)
+  const splitSeriesFrom = useEntityStore((s) => s.splitSeriesFrom)
   const deleteItem = useEntityStore((s) => s.deleteItem)
   const scheduleItemOnDate = useEntityStore((s) => s.scheduleItemOnDate)
   const unscheduleInstance = useEntityStore((s) => s.unscheduleInstance)
@@ -104,12 +105,14 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   // "Save for all" is the explicit opt-in to change the series' template.
   const isRecurringInstance = !isCreate && instanceId && existingItem?.recurrence
 
-  // `applyToSeries` only matters for a recurring-instance edit — everywhere
-  // else there's only ever one save button, and it always means "apply
-  // to the item," so the default (false) is a no-op there.
+  // `scope` only matters for a recurring-instance edit (everywhere else there's
+  // one Save): 'this' changes just this occurrence, 'future' applies the edit
+  // to this occurrence and every later one (earlier ones keep their old
+  // values), 'all' changes the whole series, past included.
   // `percentOverride` lets "Mark complete" save 100% in the same call —
   // state set just before handleSave wouldn't be visible to it yet.
-  const handleSave = async (applyToSeries = false, percentOverride = null) => {
+  const handleSave = async (scope = 'this', percentOverride = null) => {
+    const applyToSeries = scope !== 'this'
     const percent = percentOverride ?? percentComplete
     if (!title.trim()) {
       setError('Title is required')
@@ -194,7 +197,8 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
         if (scopeToInstance && (effectiveDuration !== instance?.durationMinutes || isAllDay !== instance?.isAllDay)) {
           await setInstanceDuration(instanceId, effectiveDuration, isAllDay)
         }
-        await updateItem(itemId, payload)
+        if (scope === 'future') await splitSeriesFrom(itemId, scheduledDate, payload)
+        else await updateItem(itemId, payload)
       } else {
         // Remember the pre-completion percent so "Mark incomplete" can restore it.
         const before = existingItem?.percentComplete ?? 0
@@ -337,22 +341,30 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
       </Button>
       {saveMenuOpen && (
         <div className="save-menu-list" role="menu">
-          <button type="button" role="menuitem" onClick={() => handleSave(false)}>
-            Save this event
+          <button type="button" role="menuitem" onClick={() => handleSave('this')}>
+            This event only
           </button>
           <button
             type="button"
             role="menuitem"
-            onClick={() => handleSave(true)}
-            title="Applies time, duration and all-day changes to every future occurrence, not just this one"
+            onClick={() => handleSave('future')}
+            title="Applies the changes to this event and every later one; earlier events keep how they were"
           >
-            Save for all
+            This & future events
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => handleSave('all')}
+            title="Applies the changes to every event in the series, including past ones"
+          >
+            All events
           </button>
         </div>
       )}
     </div>
   ) : (
-    <Button variant="primary" onClick={() => handleSave(false)}>
+    <Button variant="primary" onClick={() => handleSave('this')}>
       Save
     </Button>
   )
@@ -398,7 +410,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
           {date && isRecurringInstance && (
             <InfoTip label="About changing the date or time">
               Changing the date only moves this occurrence. Changing the time moves just this
-              occurrence on "Save", or the whole series' regular time on "Save for all".
+              occurrence on "Save", or the series' regular time from this event on ("This & future") or for every event ("All events").
             </InfoTip>
           )}
           <ToggleButton pressed={isAllDay} onChange={handleAllDayChange}>
@@ -418,7 +430,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
             onChange={(d) => setDurationMinutes(d * MINUTES_PER_DAY)}
             info={isRecurringInstance ? (
               <InfoTip label="About changing the duration">
-                Duration/all-day changes only apply to this occurrence — use "Save for all" in the Save menu to change every future one.
+                Duration/all-day changes only apply to this occurrence — use "This & future" or "All events" in the Save menu to change more than this one.
               </InfoTip>
             ) : null}
           />
@@ -429,7 +441,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
             startTime={date ? startTime : null}
             info={isRecurringInstance ? (
               <InfoTip label="About changing the duration">
-                Duration/all-day changes only apply to this occurrence — use "Save for all" in the Save menu to change every future one.
+                Duration/all-day changes only apply to this occurrence — use "This & future" or "All events" in the Save menu to change more than this one.
               </InfoTip>
             ) : null}
           />
@@ -442,14 +454,14 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
               const prev = (instanceId ? instance : existingItem)?.percentBeforeComplete
               const restored = prev != null && prev < 100 ? prev : 0
               setPercentComplete(restored)
-              handleSave(false, restored)
+              handleSave('this', restored)
             }}
           >
             ↺ Mark incomplete
           </Button>
         )}
         {!isCreate && percentComplete < 100 && (
-          <Button variant="success" onClick={() => { setPercentComplete(100); handleSave(false, 100) }}>
+          <Button variant="success" onClick={() => { setPercentComplete(100); handleSave('this', 100) }}>
             ✓ Mark complete
           </Button>
         )}
@@ -510,19 +522,26 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
         <div className="item-detail-save-bottom">
           {isRecurringInstance ? (
             <>
-              <Button variant="primary" onClick={() => handleSave(false)}>
-                Save this event
+              <Button variant="primary" onClick={() => handleSave('this')}>
+                This event
               </Button>
               <Button
                 variant="subtle"
-                onClick={() => handleSave(true)}
-                title="Applies time, duration and all-day changes to every future occurrence, not just this one"
+                onClick={() => handleSave('future')}
+                title="Applies the changes to this event and every later one; earlier events keep how they were"
               >
-                Save for all
+                This & future
+              </Button>
+              <Button
+                variant="subtle"
+                onClick={() => handleSave('all')}
+                title="Applies the changes to every event in the series, including past ones"
+              >
+                All events
               </Button>
             </>
           ) : (
-            <Button variant="primary" onClick={() => handleSave(false)}>
+            <Button variant="primary" onClick={() => handleSave('this')}>
               Save
             </Button>
           )}
