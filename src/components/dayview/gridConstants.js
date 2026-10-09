@@ -9,18 +9,30 @@ export const DAY_HEIGHT = DAY_MINUTES * PX_PER_MIN
 // height so short items stay legible, same as Google Calendar does.
 export const MIN_BLOCK_HEIGHT_PX = 26
 
-// Overlapping instance blocks cascade rightward (later-starting block on top)
-// rather than splitting into equal columns. A block on top of another sits
-// inset from BOTH sides — OVERLAP_FIRST_OFFSET_PX in from the left and the same
-// from the right, so it reads as centered and the one underneath is visible
-// all around it. Each deeper level steps a further OVERLAP_STEP_PX to the right.
-export const OVERLAP_FIRST_OFFSET_PX = 44
-export const OVERLAP_STEP_PX = 20
-export const OVERLAP_RIGHT_INSET_PX = OVERLAP_FIRST_OFFSET_PX
+// Overlapping instance blocks cascade (later-starting block on top) instead of
+// splitting into equal columns. A block on top of another is inset from both
+// sides so the one underneath shows around it:
+//  - the right inset leaves the underneath block's complete-checkbox (which
+//    sits at its right edge) visible, and grows one checkbox-width per level so
+//    a third block doesn't cover the second's checkbox;
+//  - the left offset grows a little per level.
+// Past OVERLAP_MAX_LEVELS the insets stop growing so deep stacks stay readable.
+const OVERLAP_FIRST_LEFT_PX = 44
+const OVERLAP_LEFT_STEP_PX = 12
+const OVERLAP_FIRST_RIGHT_PX = 34
+const OVERLAP_RIGHT_STEP_PX = 30
+const OVERLAP_MAX_LEVELS = 3
 
 /** Extra left offset (beyond the 6px gutter) for a block at this stagger index. */
 export function overlapLeftOffset(index) {
-  return index <= 0 ? 0 : OVERLAP_FIRST_OFFSET_PX + (index - 1) * OVERLAP_STEP_PX
+  if (index <= 0) return 0
+  return OVERLAP_FIRST_LEFT_PX + (Math.min(index, OVERLAP_MAX_LEVELS) - 1) * OVERLAP_LEFT_STEP_PX
+}
+
+/** Extra right inset (beyond the 6px gutter) for a block at this stagger index. */
+export function overlapRightInset(index) {
+  if (index <= 0) return 0
+  return OVERLAP_FIRST_RIGHT_PX + (Math.min(index, OVERLAP_MAX_LEVELS) - 1) * OVERLAP_RIGHT_STEP_PX
 }
 
 export function minutesToPx(minutes) {
