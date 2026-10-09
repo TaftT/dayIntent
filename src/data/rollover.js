@@ -26,7 +26,6 @@ export async function runRollover(today) {
     if (!item) continue
 
     let next = instance
-
     if (next.startPercent === null) {
       next = await repo.saveInstance({ ...next, startPercent: next.percentComplete })
     }
@@ -72,5 +71,7 @@ export function getDisplayStatus(instance) {
   if (instance.startPercent != null && instance.percentComplete > instance.startPercent) {
     return 'in_progress'
   }
+  // No baseline recorded yet: any progress at all is progress made on this day.
+  if (instance.startPercent == null && instance.percentComplete > 0) return 'in_progress'
   return 'pending'
 }

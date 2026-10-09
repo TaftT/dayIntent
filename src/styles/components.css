@@ -3215,3 +3215,30 @@
     padding: 8px 1px;
   }
 }
+
+/* Status marker on day-view tasks: drawn, so it is the same size on every device */
+.status-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.status-circle-half {
+  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+}
+
+.status-circle svg {
+  width: 72%;
+  height: 72%;
+}
+
+.instance-complete-toggle,
+.instance-complete-toggle-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

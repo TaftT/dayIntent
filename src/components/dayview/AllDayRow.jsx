@@ -4,6 +4,7 @@ import { useCategoryById } from '../../hooks/useCategories.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
+import { StatusCircle } from './StatusCircle.jsx'
 import { getDisplayStatus } from '../../data/rollover.js'
 import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 import { fromDateStr, addDaysStr } from '../../utils/dateUtils.js'
@@ -44,7 +45,7 @@ function AllDayChip({ instance, span }) {
         }}
         aria-label="Mark complete"
       >
-        {status === 'completed' ? '✓' : '○'}
+        <StatusCircle status={status} size={15} />
       </button>
       {item.title}
       {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
