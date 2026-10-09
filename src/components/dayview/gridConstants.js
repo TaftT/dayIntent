@@ -11,12 +11,12 @@ export const MIN_BLOCK_HEIGHT_PX = 26
 
 // Overlapping instance blocks cascade rightward by this many px per step
 // (later-starting block on top), rather than splitting into equal columns.
-export const OVERLAP_STAGGER_PX = 26
+export const OVERLAP_STAGGER_PX = 32
 
 // A block sitting on top of another is also pulled in from the right edge by
 // this much, so the one underneath stays visible on both sides instead of
 // only peeking out at the left.
-export const OVERLAP_RIGHT_INSET_PX = 18
+export const OVERLAP_RIGHT_INSET_PX = 36
 
 export function minutesToPx(minutes) {
   return minutes * PX_PER_MIN

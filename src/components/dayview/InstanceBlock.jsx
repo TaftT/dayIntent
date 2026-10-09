@@ -155,7 +155,9 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
     color: isSleep ? 'var(--color-text)' : status === 'ghost' ? 'var(--color-text-muted)' : textColor,
     transform: dragTransform,
     zIndex: isMoving ? 20 : 1 + cappedStagger,
-    opacity: status === 'worked_on' || status === 'in_progress' ? 0.85 : 1,
+    // A block stacked on another is slightly see-through so the one beneath
+    // reads through it, on top of the strips left visible at its sides.
+    opacity: cappedStagger > 0 ? 0.88 : status === 'worked_on' || status === 'in_progress' ? 0.85 : 1,
     ...staggerStyle,
   }
 
