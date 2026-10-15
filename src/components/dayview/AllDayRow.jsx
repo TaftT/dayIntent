@@ -1,5 +1,5 @@
 import { differenceInCalendarDays } from 'date-fns'
-import { useItem } from '../../hooks/useItem.js'
+import { useInstanceItem } from '../../hooks/useItem.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
@@ -16,7 +16,7 @@ function allDaySpan(instance) {
 }
 
 function AllDayChip({ instance, span }) {
-  const item = useItem(instance.itemId)
+  const item = useInstanceItem(instance)
   const category = useCategoryById(item?.categoryId)
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
   const openModal = useAppStore((s) => s.openModal)

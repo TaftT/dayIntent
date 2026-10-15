@@ -39,7 +39,7 @@ export function CategoryTimeSection({ from, to }) {
   const allInstances = useEntityStore((s) => s.allInstances)
   const allJournals = useEntityStore((s) => s.allJournals)
 
-  const { taskRows, completedTaskMinutes, downtimeMinutes, wakingMinutes, screenTimeMinutes } =
+  const { taskRows, completedTaskMinutes, downtimeMinutes, wakingMinutes, sleepMinutes, screenTimeMinutes } =
     computeUnscheduledTime(allInstances, items, categories, allJournals, from, to)
   const scaleMax = Math.max(downtimeMinutes, screenTimeMinutes, ...taskRows.map((r) => r.minutes))
 
@@ -63,6 +63,10 @@ export function CategoryTimeSection({ from, to }) {
         <div className="stat-tile">
           <span className="stat-tile-value">{formatMinutesShort(wakingMinutes)}</span>
           <span className="stat-tile-label">Total waking time</span>
+        </div>
+        <div className="stat-tile">
+          <span className="stat-tile-value">{formatMinutesShort(sleepMinutes)}</span>
+          <span className="stat-tile-label">Time slept</span>
         </div>
         <div className="stat-tile">
           <span className="stat-tile-value">{formatMinutesShort(completedTaskMinutes)}</span>

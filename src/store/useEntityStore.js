@@ -349,6 +349,22 @@ export const useEntityStore = create((set, get) => ({
     return updated
   },
 
+  // Per-occurrence title/category ("Save" on a recurring instance). Stored on
+  // the instance as titleOverride/categoryIdOverride only when they differ
+  // from the series' item; null means "inherit from the item".
+  setInstanceOverrides: async (instanceId, { title, categoryId }) => {
+    const inst = await repo.getInstance(instanceId)
+    const item = await repo.getItem(inst.itemId)
+    const updated = await repo.saveInstance({
+      ...inst,
+      titleOverride: title !== item.title ? title : null,
+      categoryIdOverride: (categoryId ?? null) !== (item.categoryId ?? null) ? (categoryId ?? null) : undefined,
+    })
+    await get().loadInstancesForDate(inst.date)
+    await get().refreshAllInstances()
+    return updated
+  },
+
   // Changes just this one occurrence's duration/all-day, leaving the series'
   // template and every other occurrence untouched — the counterpart to
   // updateItem's duration handling, which is for "apply to every future

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import { useItem } from '../../hooks/useItem.js'
+import { useInstanceItem } from '../../hooks/useItem.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
@@ -17,7 +17,7 @@ const REMINDER_LABEL_HEIGHT = 18
 const MAX_OVERLAP_STAGGER = 6
 
 export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
-  const item = useItem(instance.itemId)
+  const item = useInstanceItem(instance)
   const category = useCategoryById(item?.categoryId)
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
   const openModal = useAppStore((s) => s.openModal)

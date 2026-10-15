@@ -1,4 +1,4 @@
-import { useItem } from '../../hooks/useItem.js'
+import { useInstanceItem } from '../../hooks/useItem.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
@@ -14,7 +14,7 @@ import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.j
  * editing (including moving the start time) happens through the modal.
  */
 export function OvernightContinuationBlock({ continuation }) {
-  const item = useItem(continuation.itemId)
+  const item = useInstanceItem(continuation)
   const category = useCategoryById(item?.categoryId)
   const openModal = useAppStore((s) => s.openModal)
   const hideSynced = useAuthStore((s) => Boolean(s.user) && s.needsUnlock)

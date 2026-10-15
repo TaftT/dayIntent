@@ -47,10 +47,11 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   const setInstancePercentComplete = useEntityStore((s) => s.setInstancePercentComplete)
   const setInstanceNotes = useEntityStore((s) => s.setInstanceNotes)
   const setInstanceDuration = useEntityStore((s) => s.setInstanceDuration)
+  const setInstanceOverrides = useEntityStore((s) => s.setInstanceOverrides)
 
   const isCreate = !itemId
 
-  const [title, setTitle] = useState(existingItem?.title ?? initialTitle ?? '')
+  const [title, setTitle] = useState(instance?.titleOverride ?? existingItem?.title ?? initialTitle ?? '')
   // Duration lives on the template (existingItem) by default, but once an
   // occurrence has its own override (see setInstanceDuration / "Save for
   // all" below) the instance's own value takes precedence for that one day.
@@ -61,7 +62,9 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   // of a recurring series gets its own, same reasoning as percent complete.
   // Only a plain (unscheduled) backlog item's notes live on the item itself.
   const [notes, setNotes] = useState(instance ? instance.notes : (existingItem?.notes ?? ''))
-  const [categoryId, setCategoryId] = useState(existingItem?.categoryId ?? null)
+  const [categoryId, setCategoryId] = useState(
+    instance?.categoryIdOverride !== undefined ? instance.categoryIdOverride : (existingItem?.categoryId ?? null)
+  )
   // Progress lives on the instance once an item is scheduled — each
   // occurrence of a recurring series tracks its own completion. Only a
   // plain (unscheduled) backlog item's percent lives on the item itself.
@@ -152,9 +155,11 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
       ? allDayDaysFromMinutes(durationMinutes) * MINUTES_PER_DAY
       : durationMinutes
     const payload = {
-      title: title.trim(),
+      // Title/category are series-wide on the item; a plain "Save" keeps the
+      // item's values and stores the edit as a per-occurrence override instead.
+      title: scopeToInstance ? existingItem.title : title.trim(),
       durationMinutes: scopeToInstance ? existingItem.durationMinutes : effectiveDuration,
-      categoryId,
+      categoryId: scopeToInstance ? existingItem.categoryId : categoryId,
       isAllDay: scopeToInstance ? existingItem.isAllDay : isAllDay,
       recurrence: recurrence
         ? { ...recurrence, startDate: recurrence.startDate ?? scheduledDate, time: recurrenceTime }
@@ -196,6 +201,9 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
         }
         if (scopeToInstance && (effectiveDuration !== instance?.durationMinutes || isAllDay !== instance?.isAllDay)) {
           await setInstanceDuration(instanceId, effectiveDuration, isAllDay)
+        }
+        if (scopeToInstance) {
+          await setInstanceOverrides(instanceId, { title: title.trim(), categoryId })
         }
         if (scope === 'future') await splitSeriesFrom(itemId, scheduledDate, payload)
         else await updateItem(itemId, payload)
