@@ -26,7 +26,7 @@ import { todayStr } from '../../utils/dateUtils.js'
 const MINUTES_PER_DAY = 1440
 const allDayDaysFromMinutes = (minutes) => Math.max(1, Math.round((minutes || MINUTES_PER_DAY) / MINUTES_PER_DAY))
 
-export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }) {
+export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, initialCategoryId, initialDuration }) {
   const existingItem = useItem(itemId)
   const instance = useInstance(instanceId)
   const closeModal = useAppStore((s) => s.closeModal)
@@ -56,14 +56,14 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle }
   // occurrence has its own override (see setInstanceDuration / "Save for
   // all" below) the instance's own value takes precedence for that one day.
   const [durationMinutes, setDurationMinutes] = useState(
-    instance ? instance.durationMinutes : (existingItem ? existingItem.durationMinutes : 30)
+    instance ? instance.durationMinutes : (existingItem ? existingItem.durationMinutes : (initialDuration ?? 30))
   )
   // Notes live on the instance once an item is scheduled — each occurrence
   // of a recurring series gets its own, same reasoning as percent complete.
   // Only a plain (unscheduled) backlog item's notes live on the item itself.
   const [notes, setNotes] = useState(instance ? instance.notes : (existingItem?.notes ?? ''))
   const [categoryId, setCategoryId] = useState(
-    instance?.categoryIdOverride !== undefined ? instance.categoryIdOverride : (existingItem?.categoryId ?? null)
+    instance?.categoryIdOverride !== undefined ? instance.categoryIdOverride : (existingItem?.categoryId ?? initialCategoryId ?? null)
   )
   // Progress lives on the instance once an item is scheduled — each
   // occurrence of a recurring series tracks its own completion. Only a
