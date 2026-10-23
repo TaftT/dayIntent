@@ -67,6 +67,7 @@
 }
 
 .quick-add-form {
+  min-height: 340px; /* room for the category list to open without scrolling the modal */
   display: flex;
   flex-direction: column;
   gap: 10px;
