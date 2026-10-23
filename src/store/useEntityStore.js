@@ -247,7 +247,7 @@ export const useEntityStore = create((set, get) => ({
       }
       await repo.saveInstance(moved)
     }
-    // The capped original stops being tracked on its own — otherwise the
+    // The capped original stops being tracked on its own â€” otherwise the
     // split would show up as a second habit card.
     await repo.saveItem({
       id: itemId,

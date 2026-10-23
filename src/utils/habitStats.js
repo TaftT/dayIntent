@@ -2,6 +2,45 @@ import { addDaysStr, todayStr } from './dateUtils.js'
 
 const HISTORY_DAYS = 30
 
+// A "this and following" edit made before habits were linked left two habit
+// items: the original capped the day before the split, and a copy starting on
+// the split day. This finds the capped halves that lead into `habit` so Stats
+// can show them as one habit. Display-only — nothing is written.
+function previousHalf(habit, items) {
+  const start = habit.recurrence?.startDate
+  if (!start) return null
+  const dayBefore = addDaysStr(start, -1)
+  return (
+    items.find(
+      (i) =>
+        i.id !== habit.id &&
+        i.isHabit &&
+        i.recurrence?.endDate === dayBefore &&
+        i.recurrence.freq === habit.recurrence.freq
+    ) ?? null
+  )
+}
+
+/** Earlier halves of a split habit, nearest first (usually zero or one). */
+export function getHabitPredecessors(habit, items) {
+  const chain = []
+  const seen = new Set([habit.id])
+  let cur = habit
+  for (let prev = previousHalf(cur, items); prev && !seen.has(prev.id); prev = previousHalf(cur, items)) {
+    chain.push(prev)
+    seen.add(prev.id)
+    cur = prev
+  }
+  return chain
+}
+
+/** The habits to show: drops any capped half that a later half continues. */
+export function getVisibleHabits(items) {
+  const habits = items.filter((i) => i.isHabit && i.recurrence)
+  const hidden = new Set(habits.flatMap((h) => getHabitPredecessors(h, habits).map((p) => p.id)))
+  return habits.filter((h) => !hidden.has(h.id))
+}
+
 // When more than one item shares a day, the best outcome wins — e.g. the
 // habit's own recurring instance was skipped but a same-named one-off item
 // got marked complete, that day still reads as done.
@@ -24,13 +63,15 @@ export function computeHabitStats(habitItem, allItems, allInstances) {
   // earlier/later halves of the same series (a "this and following" edit
   // splits one series in two, and may rename it).
   const rootId = habitItem.habitRootId ?? habitItem.id
+  const predecessorIds = new Set(getHabitPredecessors(habitItem, allItems).map((p) => p.id))
   const matchingItemIds = new Set(
     allItems
       .filter(
         (i) =>
           i.title.trim().toLowerCase() === normalizedTitle ||
           i.id === rootId ||
-          i.habitRootId === rootId
+          i.habitRootId === rootId ||
+          predecessorIds.has(i.id)
       )
       .map((i) => i.id)
   )

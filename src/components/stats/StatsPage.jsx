@@ -5,7 +5,7 @@ import { TopBar } from '../layout/TopBar.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
-import { computeHabitStats } from '../../utils/habitStats.js'
+import { computeHabitStats, getHabitPredecessors, getVisibleHabits } from '../../utils/habitStats.js'
 import { addDaysStr, todayStr, formatShortDate } from '../../utils/dateUtils.js'
 import { loadStatsRange, saveStatsRange } from '../../utils/statsRangeStorage.js'
 import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
@@ -41,7 +41,7 @@ function HabitCard({ item }) {
   const updateItem = useEntityStore((s) => s.updateItem)
   const deleteFutureSeries = useEntityStore((s) => s.deleteFutureSeries)
   // 'untrack' keeps the recurring item on the calendar and only drops it from
-  // this page; 'delete' ends the series after today — past occurrences stay
+  // this page; 'delete' ends the series after today â€” past occurrences stay
   // on the calendar, only upcoming ones are removed.
   const [confirming, setConfirming] = useState(null)
   const stats = computeHabitStats(item, items, allInstances)
@@ -78,10 +78,13 @@ function HabitCard({ item }) {
       {confirming === 'untrack' && (
         <ConfirmModal
           title="Stop tracking this habit?"
-          message={`“${item.title}” will disappear from Stats but stay on your calendar as a normal recurring item.`}
+          message={`â€œ${item.title}â€ will disappear from Stats but stay on your calendar as a normal recurring item.`}
           confirmLabel="Stop tracking"
           onConfirm={() => {
             setConfirming(null)
+            // Older split halves are shown as part of this card, so they stop
+            // being tracked with it (otherwise they'd pop up as a new card).
+            for (const prev of getHabitPredecessors(item, items)) updateItem(prev.id, { isHabit: false })
             updateItem(item.id, { isHabit: false })
           }}
           onCancel={() => setConfirming(null)}
@@ -90,11 +93,14 @@ function HabitCard({ item }) {
       {confirming === 'delete' && (
         <ConfirmModal
           title="Delete this habit?"
-          message={`“${item.title}” will be removed from Stats and all its upcoming occurrences deleted. Past occurrences stay on your calendar.`}
+          message={`â€œ${item.title}â€ will be removed from Stats and all its upcoming occurrences deleted. Past occurrences stay on your calendar.`}
           confirmLabel="Delete"
           danger
           onConfirm={() => {
             setConfirming(null)
+            // The earlier half is already capped (no upcoming occurrences), so
+            // it only needs untracking; its past stays on the calendar.
+            for (const prev of getHabitPredecessors(item, items)) updateItem(prev.id, { isHabit: false })
             deleteFutureSeries(item.id, addDaysStr(todayStr(), 1))
           }}
           onCancel={() => setConfirming(null)}
@@ -122,7 +128,7 @@ export function StatsPage() {
     refreshAllJournals()
   }, [refreshAllInstances, refreshAllJournals])
 
-  const habits = items.filter((i) => i.isHabit && i.recurrence)
+  const habits = getVisibleHabits(items)
 
   return (
     <div className="stats-page">
