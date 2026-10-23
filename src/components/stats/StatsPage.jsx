@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { Button } from '../shared/Button.jsx'
+import { ConfirmModal } from '../shared/ConfirmModal.jsx'
 import { TopBar } from '../layout/TopBar.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
@@ -36,6 +38,12 @@ function HabitCard({ item }) {
   const category = useCategoryById(item.categoryId)
   const allInstances = useEntityStore((s) => s.allInstances)
   const items = useEntityStore((s) => s.items)
+  const updateItem = useEntityStore((s) => s.updateItem)
+  const deleteItem = useEntityStore((s) => s.deleteItem)
+  // 'untrack' keeps the recurring item on the calendar and only drops it from
+  // this page; 'delete' removes the item itself (finished history is archived
+  // by the repo rather than lost).
+  const [confirming, setConfirming] = useState(null)
   const stats = computeHabitStats(item, items, allInstances)
 
   return (
@@ -63,6 +71,35 @@ function HabitCard({ item }) {
         </div>
       </div>
       <HabitHistoryStrip history={stats.history} />
+      <div className="habit-card-actions">
+        <Button variant="subtle" onClick={() => setConfirming('untrack')}>Stop tracking</Button>
+        <Button variant="subtle" onClick={() => setConfirming('delete')}>Delete</Button>
+      </div>
+      {confirming === 'untrack' && (
+        <ConfirmModal
+          title="Stop tracking this habit?"
+          message={`“${item.title}” will disappear from Stats but stay on your calendar as a normal recurring item.`}
+          confirmLabel="Stop tracking"
+          onConfirm={() => {
+            setConfirming(null)
+            updateItem(item.id, { isHabit: false })
+          }}
+          onCancel={() => setConfirming(null)}
+        />
+      )}
+      {confirming === 'delete' && (
+        <ConfirmModal
+          title="Delete this habit?"
+          message={`“${item.title}” and its upcoming occurrences will be removed from your calendar and Stats.`}
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => {
+            setConfirming(null)
+            deleteItem(item.id)
+          }}
+          onCancel={() => setConfirming(null)}
+        />
+      )}
     </div>
   )
 }
