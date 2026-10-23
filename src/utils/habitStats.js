@@ -20,8 +20,19 @@ const STATUS_PRIORITY = { completed: 3, worked_on: 2, ghost: 1 }
  */
 export function computeHabitStats(habitItem, allItems, allInstances) {
   const normalizedTitle = habitItem.title.trim().toLowerCase()
+  // Items count toward this habit when they share its title, or when they're
+  // earlier/later halves of the same series (a "this and following" edit
+  // splits one series in two, and may rename it).
+  const rootId = habitItem.habitRootId ?? habitItem.id
   const matchingItemIds = new Set(
-    allItems.filter((i) => i.title.trim().toLowerCase() === normalizedTitle).map((i) => i.id)
+    allItems
+      .filter(
+        (i) =>
+          i.title.trim().toLowerCase() === normalizedTitle ||
+          i.id === rootId ||
+          i.habitRootId === rootId
+      )
+      .map((i) => i.id)
   )
 
   const today = todayStr()
