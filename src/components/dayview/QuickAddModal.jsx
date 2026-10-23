@@ -73,12 +73,13 @@ export function QuickAddModal({ date }) {
   }
 
   // Hand off to the full editor with what's been filled in, as a normal
-  // (not-yet-complete) item.
+  // (not-yet-complete) item. Unlike "Log it", the start is the current time
+  // (nearest 10 minutes), not backed off by the duration.
   const handleMoreOptions = () => {
     openModal('itemDetail', {
       itemId: null,
       date,
-      time: startTime,
+      time: endTime,
       initialTitle: title.trim(),
       initialCategoryId: categoryId,
       initialDuration: effectiveDuration,
