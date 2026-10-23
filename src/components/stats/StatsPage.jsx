@@ -6,7 +6,7 @@ import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { computeHabitStats } from '../../utils/habitStats.js'
-import { formatShortDate } from '../../utils/dateUtils.js'
+import { addDaysStr, todayStr, formatShortDate } from '../../utils/dateUtils.js'
 import { loadStatsRange, saveStatsRange } from '../../utils/statsRangeStorage.js'
 import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 import { StatsRangeControl } from './StatsRangeControl.jsx'
@@ -39,10 +39,10 @@ function HabitCard({ item }) {
   const allInstances = useEntityStore((s) => s.allInstances)
   const items = useEntityStore((s) => s.items)
   const updateItem = useEntityStore((s) => s.updateItem)
-  const deleteItem = useEntityStore((s) => s.deleteItem)
+  const deleteFutureSeries = useEntityStore((s) => s.deleteFutureSeries)
   // 'untrack' keeps the recurring item on the calendar and only drops it from
-  // this page; 'delete' removes the item itself (finished history is archived
-  // by the repo rather than lost).
+  // this page; 'delete' ends the series after today — past occurrences stay
+  // on the calendar, only upcoming ones are removed.
   const [confirming, setConfirming] = useState(null)
   const stats = computeHabitStats(item, items, allInstances)
 
@@ -90,12 +90,12 @@ function HabitCard({ item }) {
       {confirming === 'delete' && (
         <ConfirmModal
           title="Delete this habit?"
-          message={`“${item.title}” and its upcoming occurrences will be removed from your calendar and Stats.`}
+          message={`“${item.title}” will be removed from Stats and all its upcoming occurrences deleted. Past occurrences stay on your calendar.`}
           confirmLabel="Delete"
           danger
           onConfirm={() => {
             setConfirming(null)
-            deleteItem(item.id)
+            deleteFutureSeries(item.id, addDaysStr(todayStr(), 1))
           }}
           onCancel={() => setConfirming(null)}
         />

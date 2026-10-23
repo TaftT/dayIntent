@@ -228,6 +228,9 @@ export const useEntityStore = create((set, get) => ({
       parentIds: [],
       childIds: [],
       googleSharedAt: null,
+      // Both halves of a split are one habit as far as Stats is concerned:
+      // the copy inherits the history of the capped original under one card.
+      habitRootId: old.habitRootId ?? old.id,
     })
 
     // Occurrences carry their own copy of duration/all-day, so a changed
@@ -244,7 +247,14 @@ export const useEntityStore = create((set, get) => ({
       }
       await repo.saveInstance(moved)
     }
-    await repo.saveItem({ id: itemId, recurrence: { ...old.recurrence, endDate: addDaysStr(fromDate, -1) } })
+    // The capped original stops being tracked on its own — otherwise the
+    // split would show up as a second habit card.
+    await repo.saveItem({
+      id: itemId,
+      recurrence: { ...old.recurrence, endDate: addDaysStr(fromDate, -1) },
+      habitRootId: old.habitRootId ?? old.id,
+      ...(old.isHabit ? { isHabit: false } : {}),
+    })
 
     if (ruleChanged) await regenerateFutureInstances(created, todayStr())
 
