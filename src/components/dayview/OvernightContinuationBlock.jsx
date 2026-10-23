@@ -2,6 +2,8 @@ import { useInstanceItem } from '../../hooks/useItem.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
+import { useEntityStore } from '../../store/useEntityStore.js'
+import { StatusCircle } from './StatusCircle.jsx'
 import { getDisplayStatus } from '../../data/rollover.js'
 import { minutesToPx, MIN_BLOCK_HEIGHT_PX } from './gridConstants.js'
 import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
@@ -17,6 +19,7 @@ export function OvernightContinuationBlock({ continuation }) {
   const item = useInstanceItem(continuation)
   const category = useCategoryById(item?.categoryId)
   const openModal = useAppStore((s) => s.openModal)
+  const setInstancePercentComplete = useEntityStore((s) => s.setInstancePercentComplete)
   const hideSynced = useAuthStore((s) => Boolean(s.user) && s.needsUnlock)
 
   if (!item) return null
@@ -41,6 +44,14 @@ export function OvernightContinuationBlock({ continuation }) {
     opacity: status === 'worked_on' || status === 'in_progress' ? 0.85 : 1,
   }
 
+  // Sleep that runs past midnight gets a check in its lower-right corner, so
+  // it can be ticked off in the morning once you're actually up.
+  const isDone = continuation.percentComplete >= 100
+  const toggleDone = (e) => {
+    e.stopPropagation()
+    setInstancePercentComplete(continuation.id, isDone ? (continuation.percentBeforeComplete ?? 0) : 100)
+  }
+
   return (
     <div
       className={`instance-block instance-continuation status-${status}`}
@@ -55,6 +66,16 @@ export function OvernightContinuationBlock({ continuation }) {
       }
     >
       <div className="instance-block-title">↳ {item.title}</div>
+      {isSleep && (
+        <button
+          className="instance-continuation-check"
+          onClick={toggleDone}
+          aria-label={isDone ? 'Mark sleep incomplete' : 'Mark sleep done'}
+          title={isDone ? 'Mark incomplete' : 'Mark done'}
+        >
+          <StatusCircle status={status} size={18} />
+        </button>
+      )}
     </div>
   )
 }

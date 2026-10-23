@@ -3249,3 +3249,33 @@
   gap: 8px;
   margin-top: 8px;
 }
+
+.quick-add-duration {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.quick-add-duration-value {
+  min-width: 64px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.instance-continuation-check {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+}
