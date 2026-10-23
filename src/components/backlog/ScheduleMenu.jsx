@@ -129,7 +129,6 @@ export function ScheduleMenu({ item, instanceId }) {
                   <button
                     key={day.toISOString()}
                     type="button"
-                    disabled={dateStr < today}
                     className={[
                       'mini-calendar-day',
                       !isSameMonth(day, monthAnchor) && 'outside-month',
