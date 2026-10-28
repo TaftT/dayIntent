@@ -22,9 +22,50 @@ function writeStoredView(view) {
   }
 }
 
-export const useAppStore = create((set) => ({
+const SPLIT_KEY = 'dayintent.split'
+function readStoredSplit() {
+  try {
+    const v = JSON.parse(localStorage.getItem(SPLIT_KEY))
+    return { open: Boolean(v?.open), path: typeof v?.path === 'string' ? v.path : '/backlog' }
+  } catch {
+    return { open: false, path: '/backlog' }
+  }
+}
+function writeStoredSplit(open, path) {
+  try {
+    localStorage.setItem(SPLIT_KEY, JSON.stringify({ open, path }))
+  } catch {
+    /* private mode etc. - the layout just won't persist */
+  }
+}
+const pageOf = (path) => path.split('/')[1] || ''
+
+export const useAppStore = create((set, get) => ({
   currentDate: todayStr(),
   setCurrentDate: (date) => set({ currentDate: date }),
+
+  // Desktop split view: a second page beside the routed one. The right pane
+  // keeps its own path since the browser URL only tracks the left pane.
+  splitOpen: readStoredSplit().open,
+  secondaryPath: readStoredSplit().path,
+  setSecondaryPath: (path) => {
+    writeStoredSplit(get().splitOpen, path)
+    set({ secondaryPath: path })
+  },
+  // Opening picks a different page than the left pane is showing, so the two
+  // sides start out as two different things.
+  openSplit: (primaryPath) => {
+    let path = get().secondaryPath
+    if (pageOf(path) === pageOf(primaryPath)) {
+      path = pageOf(primaryPath) === 'day' ? '/backlog' : `/day/${get().currentDate}`
+    }
+    writeStoredSplit(true, path)
+    set({ splitOpen: true, secondaryPath: path })
+  },
+  closeSplit: () => {
+    writeStoredSplit(false, get().secondaryPath)
+    set({ splitOpen: false })
+  },
 
   activeModal: null, // { type: 'itemDetail'|'categoryManager'|'search'|'quickAdd'|'datePicker'|'auth'|'unlock'|'syncMismatch', props }
   openModal: (type, props = {}) => set({ activeModal: { type, props } }),

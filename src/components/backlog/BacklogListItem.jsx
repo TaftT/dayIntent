@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { usePaneNavigate } from '../../hooks/usePane.jsx'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useCategoryById } from '../../hooks/useCategories.js'
@@ -18,7 +18,7 @@ function whenLabel(instance) {
 export function BacklogListItem({ row, rank, draggable, canSchedule, selection }) {
   const { item, percent, nextInstance } = row
   const category = useCategoryById(item.categoryId)
-  const navigate = useNavigate()
+  const navigate = usePaneNavigate()
   const flashItem = useAppStore((s) => s.flashItem)
   const items = useEntityStore((s) => s.items)
   const group = useEntityStore((s) => s.groups.find((g) => g.id === item.groupId) ?? null)

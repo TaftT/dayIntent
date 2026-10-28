@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { usePaneNavigate } from '../../hooks/usePane.jsx'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
@@ -12,7 +12,7 @@ export function BacklogInstanceRow({ row }) {
   const { item, instance } = row
   const category = useCategoryById(item.categoryId)
   const group = useEntityStore((s) => s.groups.find((g) => g.id === item.groupId) ?? null)
-  const navigate = useNavigate()
+  const navigate = usePaneNavigate()
   const flashItem = useAppStore((s) => s.flashItem)
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
   const openModal = useAppStore((s) => s.openModal)

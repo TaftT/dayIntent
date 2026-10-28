@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { usePaneNavigate } from '../../hooks/usePane.jsx'
 import { format, isSameMonth } from 'date-fns'
 import { Icon } from '../shared/Icon.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
@@ -14,7 +14,7 @@ const MENU_HEIGHT_ESTIMATE = 420
 // it and flashes the item, so you see where it landed. For an already-
 // scheduled item the same menu reschedules it or sends it back to To do.
 export function ScheduleMenu({ item, instanceId }) {
-  const navigate = useNavigate()
+  const navigate = usePaneNavigate()
   const scheduleItemOnDate = useEntityStore((s) => s.scheduleItemOnDate)
   const unscheduleInstance = useEntityStore((s) => s.unscheduleInstance)
   const flashItem = useAppStore((s) => s.flashItem)

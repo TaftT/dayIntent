@@ -3351,3 +3351,117 @@
 .day-item-note.excluded .day-item-note-title {
   opacity: 0.55;
 }
+
+/* Desktop split view: two pages side by side */
+.app-main-split {
+  flex-direction: row;
+}
+
+.split-pane {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.split-pane > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.split-pane-secondary {
+  border-left: 1px solid var(--color-border);
+}
+
+.split-pane-secondary > .split-pane-bar {
+  flex: none;
+}
+
+.split-pane-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.split-pane-tab {
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.split-pane-tab.active {
+  color: var(--color-text);
+  border-color: var(--color-border);
+  background: var(--color-bg-alt);
+}
+
+.split-pane-close {
+  margin-left: auto;
+}
+
+.split-pane-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.split-pane-body > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.icon-button-on {
+  background: var(--color-bg-alt);
+}
+
+.kebab-menu {
+  position: relative;
+}
+
+.kebab-menu-list {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 170px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+}
+
+.kebab-menu-list button {
+  padding: 10px 14px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.kebab-menu-list button:hover {
+  background: var(--color-bg-alt);
+}
+
+.journal-view-entry-header {
+  gap: 8px;
+}
+
+.journal-view-entry-header .journal-view-moods {
+  margin-left: auto;
+}
+
+.journal-view-scroll {
+  padding-bottom: 120px;
+}

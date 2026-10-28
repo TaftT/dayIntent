@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { usePane, usePaneNavigate } from '../../hooks/usePane.jsx'
 import { DndContext } from '@dnd-kit/core'
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { TopBar } from '../layout/TopBar.jsx'
@@ -26,7 +27,8 @@ const SWIPE_MAX_DURATION_MS = 800
 export function DayView() {
   const { date: dateParam } = useParams()
   const date = dateParam || todayStr()
-  const navigate = useNavigate()
+  const navigate = usePaneNavigate()
+  const isSecondaryPane = usePane()?.id === 'secondary'
   const touchStartRef = useRef(null)
   const scrollRef = useRef(null)
   const mountedDateRef = useRef(date)
@@ -59,9 +61,10 @@ export function DayView() {
 
   // Remember the last-viewed day so navigating back from the Backlog page
   // (which has no date of its own) returns here instead of a dateless route.
+  // (The right-hand split pane doesn't claim this; that's the left pane's job.)
   useEffect(() => {
-    setCurrentDate(date)
-  }, [date, setCurrentDate])
+    if (!isSecondaryPane) setCurrentDate(date)
+  }, [date, setCurrentDate, isSecondaryPane])
 
   // A multi-select only makes sense for the day it was built on — drop it
   // when paging to another day or leaving the view.

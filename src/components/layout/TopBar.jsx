@@ -3,11 +3,20 @@ import { useAuthStore } from '../../store/useAuthStore.js'
 import { firebaseEnabled } from '../../firebase/config.js'
 import { DayNavControls } from '../dayview/DayNavControls.jsx'
 import { Icon } from '../shared/Icon.jsx'
+import { useLocation } from 'react-router-dom'
+import { usePane } from '../../hooks/usePane.jsx'
+import { useIsWide } from '../../hooks/useIsWide.js'
 import { useJournal } from '../../hooks/useJournal.js'
 import { isRichTextEmpty } from '../../utils/richText.js'
 
 export function TopBar({ date }) {
   const openModal = useAppStore((s) => s.openModal)
+  const splitOpen = useAppStore((s) => s.splitOpen)
+  const openSplit = useAppStore((s) => s.openSplit)
+  const closeSplit = useAppStore((s) => s.closeSplit)
+  const { pathname } = useLocation()
+  const isSecondaryPane = usePane()?.id === 'secondary'
+  const wide = useIsWide()
   const toggleJournal = useAppStore((s) => s.toggleJournal)
   const authReady = useAuthStore((s) => s.ready)
   const user = useAuthStore((s) => s.user)
@@ -40,6 +49,17 @@ export function TopBar({ date }) {
             aria-label={hasJournalEntry ? 'Journal (entry saved for this day)' : 'Journal'}
           >
             <Icon name="journal" />
+          </button>
+        )}
+        {wide && !isSecondaryPane && (
+          <button
+            className={splitOpen ? 'icon-button icon-button-on' : 'icon-button'}
+            onClick={() => (splitOpen ? closeSplit() : openSplit(pathname))}
+            aria-pressed={splitOpen}
+            aria-label={splitOpen ? 'Close split view' : 'Open split view'}
+            title={splitOpen ? 'Close split view' : 'Open a second page side by side'}
+          >
+            <Icon name="split" />
           </button>
         )}
         <button className="icon-button" onClick={() => openModal('search')} aria-label="Search">

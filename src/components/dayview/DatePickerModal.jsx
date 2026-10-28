@@ -5,13 +5,14 @@ import { useAppStore } from '../../store/useAppStore.js'
 import { useMonthGridDays } from '../../hooks/useMonthGridDays.js'
 import { toDateStr, isTodayStr } from '../../utils/dateUtils.js'
 
-export function DatePickerModal({ date }) {
+export function DatePickerModal({ date, onPick }) {
   const closeModal = useAppStore((s) => s.closeModal)
   const navigate = useNavigate()
   const { monthAnchor, days, goToPrevMonth, goToNextMonth } = useMonthGridDays(date)
 
   const goToDate = (dateStr) => {
-    navigate(`/day/${dateStr}`)
+    if (onPick) onPick(dateStr)
+    else navigate(`/day/${dateStr}`)
     closeModal()
   }
 

@@ -1,9 +1,9 @@
-import { useNavigate } from 'react-router-dom'
+import { usePaneNavigate } from '../../hooks/usePane.jsx'
 import { addDaysStr, todayStr, formatDayHeading, isTodayStr } from '../../utils/dateUtils.js'
 import { useAppStore } from '../../store/useAppStore.js'
 
 export function DayNavControls({ date }) {
-  const navigate = useNavigate()
+  const navigate = usePaneNavigate()
   const openModal = useAppStore((s) => s.openModal)
   const goTo = (d) => navigate(`/day/${d}`)
 
@@ -20,7 +20,7 @@ export function DayNavControls({ date }) {
       </button>
       <button
         className="day-heading"
-        onClick={() => openModal('datePicker', { date })}
+        onClick={() => openModal('datePicker', { date, onPick: goTo })}
         aria-label="Jump to date"
       >
         {formatDayHeading(date)}
