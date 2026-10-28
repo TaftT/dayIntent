@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { endOfMonth, startOfMonth, addMonths, format } from 'date-fns'
 import { TopBar } from '../layout/TopBar.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
+import { isRichTextEmpty } from '../../utils/richText.js'
 import { formatDayHeading, fromDateStr, toDateStr, todayStr } from '../../utils/dateUtils.js'
 
 const isBlank = (html) => (html ?? '').replace(/<[^>]*>|&nbsp;/g, '').trim() === ''
@@ -14,17 +15,33 @@ const monthRangeOf = (date) => ({ from: toDateStr(startOfMonth(date)), to: toDat
 // month; the range can be stepped by month or set to any custom dates.
 export function JournalViewPage() {
   const allJournals = useEntityStore((s) => s.allJournals)
+  const allInstances = useEntityStore((s) => s.allInstances)
+  const items = useEntityStore((s) => s.items)
   const [range, setRange] = useState(() => monthRangeOf(new Date()))
   const scrollRef = useRef(null)
 
-  const entries = useMemo(
-    () =>
-      allJournals
-        .filter((j) => j.date >= range.from && j.date <= range.to)
-        .filter((j) => !isBlank(j.content) || j.mood || j.spouseMood)
-        .sort((a, b) => a.date.localeCompare(b.date)),
-    [allJournals, range],
-  )
+  // Item notes the user hasn't toggled out of the journal, keyed by date.
+  const notesByDate = useMemo(() => {
+    const map = new Map()
+    for (const inst of allInstances) {
+      if (inst.journalExcluded || isRichTextEmpty(inst.notes)) continue
+      if (inst.date < range.from || inst.date > range.to) continue
+      const item = items.find((i) => i.id === inst.itemId)
+      if (!item) continue
+      map.set(inst.date, [...(map.get(inst.date) ?? []), { id: inst.id, title: item.title, notes: inst.notes }])
+    }
+    return map
+  }, [allInstances, items, range])
+
+  const entries = useMemo(() => {
+    const byDate = new Map(allJournals.map((j) => [j.date, j]))
+    const dates = new Set([...byDate.keys(), ...notesByDate.keys()])
+    return [...dates]
+      .filter((d) => d >= range.from && d <= range.to)
+      .map((d) => ({ ...(byDate.get(d) ?? { date: d }), itemNotes: notesByDate.get(d) ?? [] }))
+      .filter((j) => !isBlank(j.content) || j.mood || j.spouseMood || j.itemNotes.length > 0)
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }, [allJournals, notesByDate, range])
 
   // Land on the newest entry whenever the page opens or the range changes.
   useLayoutEffect(() => {
@@ -89,6 +106,12 @@ export function JournalViewPage() {
               {!isBlank(j.content) && (
                 <div className="journal-view-entry-body" dangerouslySetInnerHTML={{ __html: j.content }} />
               )}
+              {j.itemNotes.map((n) => (
+                <div key={n.id} className="day-item-note">
+                  <div className="day-item-note-title">{n.title}</div>
+                  <div className="day-item-note-body" dangerouslySetInnerHTML={{ __html: n.notes }} />
+                </div>
+              ))}
             </article>
           ))
         )}

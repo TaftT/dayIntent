@@ -359,6 +359,15 @@ export const useEntityStore = create((set, get) => ({
     return updated
   },
 
+  // Whether this occurrence's notes appear in the journal (day panel and
+  // journal view). Absent/false means included.
+  setInstanceJournalExcluded: async (instanceId, excluded) => {
+    const inst = await repo.getInstance(instanceId)
+    const updated = await repo.saveInstance({ ...inst, journalExcluded: excluded })
+    await get().loadInstancesForDate(inst.date)
+    return updated
+  },
+
   // Per-occurrence title/category ("Save" on a recurring instance). Stored on
   // the instance as titleOverride/categoryIdOverride only when they differ
   // from the series' item; null means "inherit from the item".

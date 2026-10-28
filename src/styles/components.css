@@ -3340,3 +3340,14 @@
   text-align: center;
   margin-top: 32px;
 }
+
+.day-item-note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.day-item-note.excluded .day-item-note-title {
+  opacity: 0.55;
+}
