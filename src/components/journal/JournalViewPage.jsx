@@ -3,6 +3,7 @@ import { usePaneNavigate } from '../../hooks/usePane.jsx'
 import { endOfMonth, startOfMonth, addMonths, format } from 'date-fns'
 import { TopBar } from '../layout/TopBar.jsx'
 import { KebabMenu } from '../shared/KebabMenu.jsx'
+import { EntryEditor } from './EntryEditor.jsx'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { isRichTextEmpty } from '../../utils/richText.js'
@@ -49,10 +50,13 @@ export function JournalViewPage() {
   const entries = useMemo(() => {
     const byDate = new Map(allJournals.map((j) => [j.date, j]))
     const dates = new Set([...byDate.keys(), ...notesByDate.keys()])
-    return [...dates]
+    const today = todayStr()
+    // Today is always listed (when in range) so there's somewhere to write it.
+    return [...dates, ...(today >= range.from && today <= range.to ? [today] : [])]
+      .filter((d, i, all) => all.indexOf(d) === i)
       .filter((d) => d >= range.from && d <= range.to)
       .map((d) => ({ ...(byDate.get(d) ?? { date: d }), itemNotes: notesByDate.get(d) ?? [] }))
-      .filter((j) => !isBlank(j.content) || j.mood || j.spouseMood || j.itemNotes.length > 0)
+      .filter((j) => j.date === today || !isBlank(j.content) || j.mood || j.spouseMood || j.itemNotes.length > 0)
       .sort((a, b) => a.date.localeCompare(b.date))
   }, [allJournals, notesByDate, range])
 
@@ -128,8 +132,12 @@ export function JournalViewPage() {
                   actions={[{ label: 'Edit', onClick: () => editDay(j.date) }]}
                 />
               </header>
-              {!isBlank(j.content) && (
-                <div className="journal-view-entry-body" dangerouslySetInnerHTML={{ __html: j.content }} />
+              {j.date === todayStr() ? (
+                <EntryEditor date={j.date} placeholder="Write today's journal…" />
+              ) : (
+                !isBlank(j.content) && (
+                  <div className="journal-view-entry-body" dangerouslySetInnerHTML={{ __html: j.content }} />
+                )
               )}
               {j.itemNotes.map((n) => (
                 <div key={n.id} className="day-item-note">
