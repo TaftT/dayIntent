@@ -46,6 +46,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   const moveInstanceDate = useEntityStore((s) => s.moveInstanceDate)
   const setInstancePercentComplete = useEntityStore((s) => s.setInstancePercentComplete)
   const setInstanceNotes = useEntityStore((s) => s.setInstanceNotes)
+  const setInstanceJournalExcluded = useEntityStore((s) => s.setInstanceJournalExcluded)
   const setInstanceDuration = useEntityStore((s) => s.setInstanceDuration)
   const setInstanceOverrides = useEntityStore((s) => s.setInstanceOverrides)
 
@@ -71,6 +72,8 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   const [percentComplete, setPercentComplete] = useState(
     instance ? instance.percentComplete : (existingItem?.percentComplete ?? 0)
   )
+  // Whether this occurrence's notes show in the journal (instances only).
+  const [inJournal, setInJournal] = useState(!instance?.journalExcluded)
   const [isAllDay, setIsAllDay] = useState(instance ? instance.isAllDay : (existingItem?.isAllDay ?? false))
   const [scheduledDate, setScheduledDate] = useState(instance?.date ?? date ?? todayStr())
   const [startTime, setStartTime] = useState(instance?.time ?? time ?? '09:00')
@@ -205,6 +208,9 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
         }
         if (notes !== instance?.notes) {
           await setInstanceNotes(instanceId, notes)
+        }
+        if (inJournal === Boolean(instance?.journalExcluded)) {
+          await setInstanceJournalExcluded(instanceId, !inJournal)
         }
         if (scopeToInstance && (effectiveDuration !== instance?.durationMinutes || isAllDay !== instance?.isAllDay)) {
           await setInstanceDuration(instanceId, effectiveDuration, isAllDay)
@@ -503,6 +509,11 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
           )}
 
           <RichTextEditor value={notes} onChange={setNotes} className="notes-editor" placeholder="Notes" />
+          {instanceId && (
+            <ToggleButton pressed={inJournal} onChange={setInJournal}>
+              Show notes in journal
+            </ToggleButton>
+          )}
 
           <RecurrenceEditor recurrence={recurrence} defaultStartDate={scheduledDate} onChange={setRecurrence} />
 
