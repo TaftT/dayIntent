@@ -3469,3 +3469,134 @@
 .journal-view-entry.hidden-entry {
   opacity: 0.5;
 }
+
+/* Mood tally (+/- taps) */
+.mood-tally {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mood-tally-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mood-tally-row .mood-selector-label {
+  width: 52px;
+}
+
+.mood-tally-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.mood-tally-button {
+  min-width: 64px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.mood-tally-button.positive {
+  border-color: #2f9e63;
+  color: #2f9e63;
+}
+
+.mood-tally-button.negative {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.mood-tally-undo {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+}
+
+.mood-tally-undo:disabled {
+  opacity: 0.35;
+  text-decoration: none;
+}
+
+.mood-tally-score {
+  font-weight: 700;
+  min-width: 48px;
+}
+
+.mood-tally-score.positive {
+  color: #2f9e63;
+}
+
+.mood-tally-score.negative {
+  color: var(--color-danger);
+}
+
+/* Stats: daily mood score bars around a centre line */
+.mood-stats-person {
+  margin-bottom: 20px;
+}
+
+.mood-stats-name {
+  font-size: 0.95rem;
+  margin: 0 0 8px;
+}
+
+.mood-strip {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  height: 110px;
+  overflow-x: auto;
+}
+
+.mood-strip::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid var(--color-border);
+}
+
+.mood-strip-day {
+  position: relative;
+  flex: 1;
+  min-width: 6px;
+}
+
+.mood-strip-day.empty {
+  background: var(--color-bg-alt);
+  opacity: 0.5;
+  border-radius: 3px;
+}
+
+.mood-strip-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-radius: 3px;
+}
+
+.mood-strip-bar.positive {
+  bottom: 50%;
+  background: #2f9e63;
+}
+
+.mood-strip-bar.negative {
+  top: 50%;
+  background: var(--color-danger);
+}
