@@ -213,6 +213,16 @@
   animation: btn-spinner-spin 0.7s linear infinite;
 }
 
+.btn-spinner-inline {
+  vertical-align: -2px;
+  margin-right: 6px;
+}
+
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 @keyframes btn-spinner-spin {
   to {
     transform: rotate(360deg);
@@ -361,6 +371,17 @@
   position: relative;
   margin-left: var(--sidebar-width);
   border-left: 1px solid var(--color-border);
+}
+
+/* Extends the grid's tap target over the hour-label gutter so tapping near a
+   time label adds an item at that time, same as tapping the grid itself. */
+.day-grid::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--sidebar-width));
+  width: var(--sidebar-width);
 }
 
 .hour-row {

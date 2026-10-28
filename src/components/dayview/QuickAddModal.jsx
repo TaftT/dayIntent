@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Modal } from '../shared/Modal.jsx'
 import { Button } from '../shared/Button.jsx'
 import { CategoryPicker } from '../itemdetail/CategoryPicker.jsx'
@@ -37,6 +37,7 @@ export function QuickAddModal({ date }) {
   const [endMinutes] = useState(nearestTenMinNow)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
 
   // Can't start before midnight, so a long duration late-night-clamps to what fits.
   const effectiveDuration = Math.min(duration, endMinutes) || STEP_MINUTES
@@ -47,10 +48,14 @@ export function QuickAddModal({ date }) {
   const changeDuration = (delta) => setDuration((d) => Math.max(STEP_MINUTES, d + delta))
 
   const handleAdd = async () => {
+    // Enter in the title field bypasses the disabled button, and a fast double
+    // tap lands before `saving` re-renders — the ref covers both.
+    if (savingRef.current) return
     if (!title.trim()) {
       setError('Title is required')
       return
     }
+    savingRef.current = true
     setSaving(true)
     try {
       const saved = await createItem({
@@ -68,6 +73,7 @@ export function QuickAddModal({ date }) {
       closeModal()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong adding this item')
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -88,13 +94,13 @@ export function QuickAddModal({ date }) {
 
   const footer = (
     <>
-      <Button variant="subtle" onClick={handleMoreOptions}>
+      <Button variant="subtle" onClick={handleMoreOptions} disabled={saving}>
         More options
       </Button>
-      <Button variant="subtle" onClick={closeModal}>
+      <Button variant="subtle" onClick={closeModal} disabled={saving}>
         Cancel
       </Button>
-      <Button variant="primary" onClick={handleAdd} disabled={saving}>
+      <Button variant="primary" onClick={handleAdd} loading={saving}>
         Log it
       </Button>
     </>

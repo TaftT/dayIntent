@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Modal } from '../shared/Modal.jsx'
 import { Button } from '../shared/Button.jsx'
@@ -85,6 +85,10 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   const [googleSharedAt, setGoogleSharedAt] = useState(existingItem?.googleSharedAt ?? null)
   const [error, setError] = useState('')
   const [saveMenuOpen, setSaveMenuOpen] = useState(false)
+  // The ref blocks a second save in the same tick (before `saving` re-renders);
+  // the state drives the disabled/spinner buttons.
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   // Notes, recurrence, habit, sync and links stay tucked away until asked for.
   // Starts open when anything inside has already been set, so existing values
   // are never hidden; otherwise stays collapsed.
@@ -115,6 +119,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   // `percentOverride` lets "Mark complete" save 100% in the same call —
   // state set just before handleSave wouldn't be visible to it yet.
   const handleSave = async (scope = 'this', percentOverride = null) => {
+    if (savingRef.current) return
     const applyToSeries = scope !== 'this'
     const percent = percentOverride ?? percentComplete
     if (!title.trim()) {
@@ -170,6 +175,8 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
       googleSharedAt,
     }
 
+    savingRef.current = true
+    setSaving(true)
     try {
       if (isCreate) {
         const saved = await createItem({ ...payload, notes, isUnscheduled: true })
@@ -218,6 +225,8 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
       closeModal()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong saving this item')
+      savingRef.current = false
+      setSaving(false)
     }
   }
 
@@ -341,6 +350,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
     <div className="save-menu">
       <Button
         variant="primary"
+        loading={saving}
         onClick={() => setSaveMenuOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={saveMenuOpen}
@@ -349,12 +359,13 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
       </Button>
       {saveMenuOpen && (
         <div className="save-menu-list" role="menu">
-          <button type="button" role="menuitem" onClick={() => handleSave('this')}>
+          <button type="button" role="menuitem" disabled={saving} onClick={() => handleSave('this')}>
             This event only
           </button>
           <button
             type="button"
             role="menuitem"
+            disabled={saving}
             onClick={() => handleSave('future')}
             title="Applies the changes to this event and every later one; earlier events keep how they were"
           >
@@ -363,6 +374,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
           <button
             type="button"
             role="menuitem"
+            disabled={saving}
             onClick={() => handleSave('all')}
             title="Applies the changes to every event in the series, including past ones"
           >
@@ -372,7 +384,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
       )}
     </div>
   ) : (
-    <Button variant="primary" onClick={() => handleSave('this')}>
+    <Button variant="primary" loading={saving} onClick={() => handleSave('this')}>
       Save
     </Button>
   )
@@ -457,6 +469,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
         {!isCreate && percentComplete >= 100 && (
           <Button
             variant="subtle"
+            loading={saving}
             onClick={() => {
               // Back to where it was before being completed (0 if unknown).
               const prev = (instanceId ? instance : existingItem)?.percentBeforeComplete
@@ -469,7 +482,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
           </Button>
         )}
         {!isCreate && percentComplete < 100 && (
-          <Button variant="success" onClick={() => { setPercentComplete(100); handleSave('this', 100) }}>
+          <Button variant="success" loading={saving} onClick={() => { setPercentComplete(100); handleSave('this', 100) }}>
             ✓ Mark complete
           </Button>
         )}
@@ -530,11 +543,12 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
         <div className="item-detail-save-bottom">
           {isRecurringInstance ? (
             <>
-              <Button variant="primary" onClick={() => handleSave('this')}>
+              <Button variant="primary" loading={saving} onClick={() => handleSave('this')}>
                 This event
               </Button>
               <Button
                 variant="subtle"
+                disabled={saving}
                 onClick={() => handleSave('future')}
                 title="Applies the changes to this event and every later one; earlier events keep how they were"
               >
@@ -542,6 +556,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
               </Button>
               <Button
                 variant="subtle"
+                disabled={saving}
                 onClick={() => handleSave('all')}
                 title="Applies the changes to every event in the series, including past ones"
               >
@@ -549,7 +564,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
               </Button>
             </>
           ) : (
-            <Button variant="primary" onClick={() => handleSave('this')}>
+            <Button variant="primary" loading={saving} onClick={() => handleSave('this')}>
               Save
             </Button>
           )}
