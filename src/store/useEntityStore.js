@@ -7,6 +7,8 @@ import { reorderWithinGroup } from '../utils/groupOrder.js'
 import { todayStr, addDaysStr, timeStrToMinutes } from '../utils/dateUtils.js'
 import { DEFAULT_COLOR_SWATCHES } from '../utils/colorUtils.js'
 import { adjustTally } from '../utils/moodTally.js'
+import { moveDistanceMinutes } from '../utils/scoring.js'
+import { loadScoringSettings } from '../utils/scoringSettings.js'
 
 // True once an occurrence is entirely in the past, so it's marked complete
 // when created or moved there: any earlier day, or today with a time that was
@@ -20,6 +22,28 @@ export function hasElapsed(date, time, durationMinutes = 0) {
   if (date > today || !time) return false
   const now = new Date()
   return timeStrToMinutes(time) + (durationMinutes || 0) <= now.getHours() * 60 + now.getMinutes()
+}
+
+// Thrown when a locked occurrence is moved without the caller having had the
+// user confirm it (the UI shows a confirmation modal first, then passes
+// `confirmedLocked`).
+export class LockedInstanceError extends Error {
+  constructor() {
+    super('This item is locked')
+    this.name = 'LockedInstanceError'
+  }
+}
+
+// The `moves` list on an occurrence is what the Stats score docks points for.
+// Moves within a short grace period of first scheduling are free (fixing a
+// misplaced drop), as is a move that goes nowhere.
+function movesAfter(inst, newDate, newTime) {
+  const moves = inst.moves ?? []
+  const minutes = moveDistanceMinutes(inst.date, inst.isAllDay ? null : inst.time, newDate, newTime)
+  if (minutes === 0) return moves
+  const ageMinutes = (Date.now() - new Date(inst.createdAt).getTime()) / 60000
+  if (ageMinutes < loadScoringSettings().graceMinutes) return moves
+  return [...moves, { at: new Date().toISOString(), minutes, locked: Boolean(inst.locked) }]
 }
 
 // Serializes mood-tally taps (see adjustMoodTally).
@@ -441,14 +465,24 @@ export const useEntityStore = create((set, get) => ({
     const pickedTime = isAllDay ? null : (opts.time ?? null)
     const isPastDate = hasElapsed(date, pickedTime, item.durationMinutes)
 
+    // Rescheduling an item that's already on the calendar is a move: the new
+    // occurrence inherits the old one's lock and move history.
+    let carried = {}
     if (!item.recurrence) {
       const existing = await repo.getInstancesForItem(itemId)
-      for (const inst of existing.filter((i) => !i.finalized)) {
+      const open = existing.filter((i) => !i.finalized)
+      const prev = open[0]
+      if (prev) {
+        if (prev.locked && !opts.confirmedLocked) throw new LockedInstanceError()
+        carried = { locked: prev.locked, moves: movesAfter(prev, date, time) }
+      }
+      for (const inst of open) {
         await repo.deleteInstance(inst.id)
       }
     }
 
     const instance = await repo.saveInstance({
+      ...carried,
       itemId,
       date,
       time,
@@ -467,11 +501,16 @@ export const useEntityStore = create((set, get) => ({
     return instance
   },
 
-  moveInstanceTime: async (instanceId, newTime) => {
+  // `opts.confirmedLocked` is required for a locked occurrence; `opts.record:
+  // false` skips the score cost when the caller already recorded this move
+  // (a combined date + time change).
+  moveInstanceTime: async (instanceId, newTime, opts = {}) => {
     const inst = await repo.getInstance(instanceId)
+    if (inst.locked && !opts.confirmedLocked) throw new LockedInstanceError()
     const elapsed = hasElapsed(inst.date, newTime, inst.durationMinutes)
     const updated = await repo.saveInstance({
       ...inst,
+      moves: opts.record === false ? inst.moves : movesAfter(inst, inst.date, newTime),
       time: newTime,
       isAllDay: false,
       percentComplete: elapsed ? 100 : inst.percentComplete,
@@ -485,11 +524,15 @@ export const useEntityStore = create((set, get) => ({
   // Moving a task to a different day (from the item modal) restarts its
   // tracking for that day — otherwise a stale locked-in status from wherever
   // it used to be finalized could carry over to the new date.
-  moveInstanceDate: async (instanceId, newDate) => {
+  // `opts.toTime` is the time-of-day the caller is about to set as well, so
+  // the date + time change is costed as one move.
+  moveInstanceDate: async (instanceId, newDate, opts = {}) => {
     const inst = await repo.getInstance(instanceId)
     if (newDate === inst.date) return inst
+    if (inst.locked && !opts.confirmedLocked) throw new LockedInstanceError()
     const updated = await repo.saveInstance({
       ...inst,
+      moves: movesAfter(inst, newDate, opts.toTime ?? (inst.isAllDay ? null : inst.time)),
       date: newDate,
       // Only a previously-finalized (locked-in-history) instance needs its
       // percent reset — otherwise it shows up already "completed" on the new
@@ -507,6 +550,15 @@ export const useEntityStore = create((set, get) => ({
     await get().reloadLoadedDates()
     await get().loadInstancesForDate(newDate)
     await get().refreshItems()
+    return updated
+  },
+
+  // Locking pins an occurrence: it can't be dragged, and changing or deleting
+  // it goes through a confirmation (and costs more to move).
+  setInstanceLocked: async (instanceId, locked) => {
+    const inst = await repo.getInstance(instanceId)
+    const updated = await repo.saveInstance({ ...inst, locked })
+    await get().loadInstancesForDate(inst.date)
     return updated
   },
 

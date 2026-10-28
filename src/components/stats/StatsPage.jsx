@@ -13,6 +13,7 @@ import { StatsRangeControl } from './StatsRangeControl.jsx'
 import { CategoryTimeSection } from './CategoryTimeSection.jsx'
 import { ScreenTimeSection } from './ScreenTimeSection.jsx'
 import { MoodSection } from './MoodSection.jsx'
+import { ScoreSection } from './ScoreSection.jsx'
 
 const STATUS_COLOR = {
   completed: 'var(--color-primary)',
@@ -144,6 +145,7 @@ export function StatsPage() {
             <ScreenTimeSection from={range.from} to={range.to} />
           </>
         )}
+        <ScoreSection from={range.from} to={range.to} />
         <MoodSection from={range.from} to={range.to} />
 
         <section className="stats-section">

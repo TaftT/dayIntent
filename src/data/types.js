@@ -40,6 +40,8 @@
  * @property {number|null} durationMinutes
  * @property {boolean} isAllDay
  * @property {string} notes - independent per occurrence, seeded from the item's notes when created
+ * @property {boolean} [locked] - pinned: no dragging; changing/deleting needs confirmation and moves cost more
+ * @property {{at: string, minutes: number, locked: boolean}[]} [moves] - every move, for the planner score
  * @property {boolean} [journalExcluded] - true to leave this occurrence's notes out of the journal
  * @property {number} percentComplete - 0-100, independent per occurrence
  * @property {number|null} startPercent
