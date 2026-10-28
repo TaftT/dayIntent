@@ -8,6 +8,7 @@ import { usePane } from '../../hooks/usePane.jsx'
 import { useIsWide } from '../../hooks/useIsWide.js'
 import { useJournal } from '../../hooks/useJournal.js'
 import { isRichTextEmpty } from '../../utils/richText.js'
+import { hasTally } from '../../utils/moodTally.js'
 
 export function TopBar({ date }) {
   const openModal = useAppStore((s) => s.openModal)
@@ -33,6 +34,7 @@ export function TopBar({ date }) {
   const hasJournalEntry = Boolean(
     journal &&
       (!isRichTextEmpty(journal.content) ||
+        hasTally(journal) ||
         journal.mood ||
         journal.spouseMood ||
         journal.screenTimeMinutes != null)

@@ -73,8 +73,9 @@
  * @typedef {Object} DayJournal
  * @property {string} date - primary key, 'YYYY-MM-DD'
  * @property {string} content - HTML string
- * @property {string|null} mood - an emoji, or null if not set
- * @property {string|null} spouseMood - spouse's mood emoji, or null if not set
+ * @property {string|null} mood - legacy: an emoji (no longer set; still shown if present)
+ * @property {string|null} spouseMood - legacy: spouse's mood emoji (no longer set; still shown if present)
+ * @property {{me: {pos: number, neg: number}, others: {pos: number, neg: number}}} [moodTally] - +1/-1 taps through the day; score = pos - neg
  * @property {number|null} screenTimeMinutes - total screen time for the day in minutes, or null if not logged
  * @property {boolean} [hiddenFromView] - true to leave the day out of the Journal page (unless 'Show hidden' is on)
  * @property {string} updatedAt

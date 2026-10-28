@@ -6,6 +6,7 @@ import { regenerateFutureInstances } from '../data/recurrence.js'
 import { reorderWithinGroup } from '../utils/groupOrder.js'
 import { todayStr, addDaysStr, timeStrToMinutes } from '../utils/dateUtils.js'
 import { DEFAULT_COLOR_SWATCHES } from '../utils/colorUtils.js'
+import { adjustTally } from '../utils/moodTally.js'
 
 // True once an occurrence is entirely in the past, so it's marked complete
 // when created or moved there: any earlier day, or today with a time that was
@@ -20,6 +21,9 @@ export function hasElapsed(date, time, durationMinutes = 0) {
   const now = new Date()
   return timeStrToMinutes(time) + (durationMinutes || 0) <= now.getHours() * 60 + now.getMinutes()
 }
+
+// Serializes mood-tally taps (see adjustMoodTally).
+let moodTallyQueue = Promise.resolve()
 
 const SLEEP_CATEGORY_NAME = 'Sleep'
 const SLEEP_CATEGORY_COLOR = '#8a5fd6'
@@ -808,6 +812,18 @@ export const useEntityStore = create((set, get) => ({
       allJournals: [...s.allJournals.filter((j) => j.date !== date), journal],
     }))
     return journal
+  },
+
+  // One +1/-1 tap on a person's mood tally. Taps are queued so rapid presses
+  // each read the previous one's result instead of overwriting it.
+  adjustMoodTally: (date, who, kind, delta) => {
+    const run = async () => {
+      const current = await repo.getJournalForDate(date)
+      return get().saveJournalForDate(date, { moodTally: adjustTally(current?.moodTally, who, kind, delta) })
+    }
+    const next = moodTallyQueue.then(run, run)
+    moodTallyQueue = next.catch(() => {})
+    return next
   },
 
   // ---- Search --------------------------------------------------------------

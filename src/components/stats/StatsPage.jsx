@@ -12,6 +12,7 @@ import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 import { StatsRangeControl } from './StatsRangeControl.jsx'
 import { CategoryTimeSection } from './CategoryTimeSection.jsx'
 import { ScreenTimeSection } from './ScreenTimeSection.jsx'
+import { MoodSection } from './MoodSection.jsx'
 
 const STATUS_COLOR = {
   completed: 'var(--color-primary)',
@@ -136,13 +137,14 @@ export function StatsPage() {
       <div className="stats-page-content">
         <h1>Stats</h1>
 
+        <StatsRangeControl from={range.from} to={range.to} onChange={setRange} />
         {signedIn && (
           <>
-            <StatsRangeControl from={range.from} to={range.to} onChange={setRange} />
             <CategoryTimeSection from={range.from} to={range.to} />
             <ScreenTimeSection from={range.from} to={range.to} />
           </>
         )}
+        <MoodSection from={range.from} to={range.to} />
 
         <section className="stats-section">
           <div className="stats-section-header">

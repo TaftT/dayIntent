@@ -8,6 +8,7 @@ import { ToggleButton } from '../shared/ToggleButton.jsx'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { isRichTextEmpty } from '../../utils/richText.js'
+import { formatScore, hasTally, readTally, sideLogged, sideScore } from '../../utils/moodTally.js'
 import { formatDayHeading, fromDateStr, toDateStr, todayStr } from '../../utils/dateUtils.js'
 
 const isBlank = (html) => (html ?? '').replace(/<[^>]*>|&nbsp;/g, '').trim() === ''
@@ -59,7 +60,7 @@ export function JournalViewPage() {
       .filter((d, i, all) => all.indexOf(d) === i)
       .filter((d) => d >= range.from && d <= range.to)
       .map((d) => ({ ...(byDate.get(d) ?? { date: d }), itemNotes: notesByDate.get(d) ?? [] }))
-      .filter((j) => j.date === today || !isBlank(j.content) || j.mood || j.spouseMood || j.itemNotes.length > 0)
+      .filter((j) => j.date === today || !isBlank(j.content) || hasTally(j) || j.mood || j.spouseMood || j.itemNotes.length > 0)
       .filter((j) => j.date === today || showHidden || !j.hiddenFromView)
       .sort((a, b) => a.date.localeCompare(b.date))
   }, [allJournals, notesByDate, range, showHidden])
@@ -131,8 +132,14 @@ export function JournalViewPage() {
                   {formatDayHeading(j.date)}
                 </a>
                 <span className="journal-view-moods">
-                  {j.mood}
-                  {j.spouseMood ? ` ${j.spouseMood}` : ''}
+                  {[
+                    ['Me', readTally(j).me],
+                    ['Others', readTally(j).others],
+                  ]
+                    .filter(([, side]) => sideLogged(side))
+                    .map(([label, side]) => `${label} ${formatScore(sideScore(side))}`)
+                    .join(' · ')}
+                  {j.mood || j.spouseMood ? ` ${j.mood ?? ''}${j.spouseMood ?? ''}` : ''}
                 </span>
                 <KebabMenu
                   label={`Actions for ${formatDayHeading(j.date)}`}
