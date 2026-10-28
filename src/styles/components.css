@@ -3301,3 +3301,42 @@
   color: inherit;
   cursor: pointer;
 }
+
+/* Journal view page */
+.journal-view-controls {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.journal-view-entry {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.journal-view-entry:last-child {
+  border-bottom: none;
+}
+
+.journal-view-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.journal-view-entry-header a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.journal-view-entry-body {
+  overflow-wrap: anywhere;
+}
+
+.journal-view-empty {
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-top: 32px;
+}

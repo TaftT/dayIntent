@@ -17,6 +17,7 @@ export function BottomNav() {
   const tabs = [
     { to: `/day/${onDayPage ? todayStr() : currentDate}`, label: 'Day', icon: 'day', active: pathname.startsWith('/day') },
     { to: '/backlog', label: 'Backlog', icon: 'backlog', active: pathname.startsWith('/backlog') },
+    { to: '/journal', label: 'Journal', icon: 'journal', active: pathname.startsWith('/journal') },
     { to: '/stats', label: 'Stats', icon: 'stats', active: pathname.startsWith('/stats') },
   ]
 
