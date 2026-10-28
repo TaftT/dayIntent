@@ -4,6 +4,7 @@ import { endOfMonth, startOfMonth, addMonths, format } from 'date-fns'
 import { TopBar } from '../layout/TopBar.jsx'
 import { KebabMenu } from '../shared/KebabMenu.jsx'
 import { EntryEditor } from './EntryEditor.jsx'
+import { ToggleButton } from '../shared/ToggleButton.jsx'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { isRichTextEmpty } from '../../utils/richText.js'
@@ -21,6 +22,8 @@ export function JournalViewPage() {
   const allInstances = useEntityStore((s) => s.allInstances)
   const items = useEntityStore((s) => s.items)
   const [range, setRange] = useState(() => monthRangeOf(new Date()))
+  const [showHidden, setShowHidden] = useState(false)
+  const saveJournalForDate = useEntityStore((s) => s.saveJournalForDate)
   const scrollRef = useRef(null)
   const navigate = usePaneNavigate()
   const openModal = useAppStore((s) => s.openModal)
@@ -57,8 +60,9 @@ export function JournalViewPage() {
       .filter((d) => d >= range.from && d <= range.to)
       .map((d) => ({ ...(byDate.get(d) ?? { date: d }), itemNotes: notesByDate.get(d) ?? [] }))
       .filter((j) => j.date === today || !isBlank(j.content) || j.mood || j.spouseMood || j.itemNotes.length > 0)
+      .filter((j) => j.date === today || showHidden || !j.hiddenFromView)
       .sort((a, b) => a.date.localeCompare(b.date))
-  }, [allJournals, notesByDate, range])
+  }, [allJournals, notesByDate, range, showHidden])
 
   // Land on the newest entry whenever the page opens or the range changes.
   useLayoutEffect(() => {
@@ -96,6 +100,9 @@ export function JournalViewPage() {
             </button>
           )}
         </div>
+        <ToggleButton pressed={showHidden} onChange={setShowHidden}>
+          Show hidden entries
+        </ToggleButton>
         <div className="stats-range-dates">
           <label>
             From
@@ -112,7 +119,7 @@ export function JournalViewPage() {
           <p className="journal-view-empty">No journal entries in this range.</p>
         ) : (
           entries.map((j) => (
-            <article key={j.date} className="journal-view-entry">
+            <article key={j.date} className={`journal-view-entry ${j.hiddenFromView ? 'hidden-entry' : ''}`}>
               <header className="journal-view-entry-header">
                 <a
                   href={`/day/${j.date}`}
@@ -129,7 +136,18 @@ export function JournalViewPage() {
                 </span>
                 <KebabMenu
                   label={`Actions for ${formatDayHeading(j.date)}`}
-                  actions={[{ label: 'Edit', onClick: () => editDay(j.date) }]}
+                  actions={[
+                    { label: 'Edit', onClick: () => editDay(j.date) },
+                    // Today always stays, since it's where you write.
+                    ...(j.date === todayStr()
+                      ? []
+                      : [
+                          {
+                            label: j.hiddenFromView ? 'Unhide from journal' : 'Hide from journal',
+                            onClick: () => saveJournalForDate(j.date, { hiddenFromView: !j.hiddenFromView }),
+                          },
+                        ]),
+                  ]}
                 />
               </header>
               {j.date === todayStr() ? (
