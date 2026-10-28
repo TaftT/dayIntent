@@ -368,6 +368,21 @@ export const useEntityStore = create((set, get) => ({
     return updated
   },
 
+  // Series version of the above: sets it on every occurrence of an item, or
+  // only those on/after `fromDate`. Occurrences already matching are left alone.
+  setJournalExcludedForItem: async (itemId, excluded, fromDate = null) => {
+    const instances = await repo.getInstancesForItem(itemId)
+    for (const inst of instances) {
+      if (fromDate && inst.date < fromDate) continue
+      if (Boolean(inst.journalExcluded) === excluded) continue
+      await repo.saveInstance({ ...inst, journalExcluded: excluded })
+    }
+    await get().refreshAllInstances()
+    const dates = Object.keys(get().instancesByDate)
+    const reloaded = await Promise.all(dates.map(async (d) => [d, await repo.getInstancesForDate(d)]))
+    set((s) => ({ instancesByDate: { ...s.instancesByDate, ...Object.fromEntries(reloaded) } }))
+  },
+
   // Per-occurrence title/category ("Save" on a recurring instance). Stored on
   // the instance as titleOverride/categoryIdOverride only when they differ
   // from the series' item; null means "inherit from the item".

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
@@ -14,6 +15,9 @@ import { SyncMismatchPrompt } from '../auth/SyncMismatchPrompt.jsx'
 import { ReminderScheduler } from '../notifications/ReminderScheduler.jsx'
 import { ToastContainer } from '../notifications/ToastContainer.jsx'
 import { BottomNav } from './BottomNav.jsx'
+import { SplitPane } from './SplitPane.jsx'
+import { PaneContext } from '../../hooks/usePane.jsx'
+import { useIsWide } from '../../hooks/useIsWide.js'
 import { seedIfEmpty } from '../../data/devSeed.js'
 
 export function AppShell({ children }) {
@@ -24,6 +28,13 @@ export function AppShell({ children }) {
   const initAuth = useAuthStore((s) => s.init)
   const signedIn = useAuthStore((s) => Boolean(s.user))
   const needsUnlock = useAuthStore((s) => s.needsUnlock)
+  const splitOpen = useAppStore((s) => s.splitOpen)
+  const secondaryPath = useAppStore((s) => s.secondaryPath)
+  const setSecondaryPath = useAppStore((s) => s.setSecondaryPath)
+  const routerNavigate = useNavigate()
+  const { pathname } = useLocation()
+  const wide = useIsWide()
+  const split = splitOpen && wide
 
   useEffect(() => {
     async function bootstrap() {
@@ -47,9 +58,34 @@ export function AppShell({ children }) {
   const openingItem = openingItemId ? items.find((i) => i.id === openingItemId) : null
   const isOpeningLockedItem = signedIn && needsUnlock && Boolean(openingItem?.syncEnabled)
 
+  // Pages navigate through their own pane. A jump to a day (e.g. "open this
+  // day" on a backlog row) lands in the other pane when that one is already
+  // showing a day, so a backlog beside a day drives the day.
+  const isDay = (p) => p.startsWith('/day')
+  const paths = { primary: pathname, secondary: secondaryPath }
+  const goTo = (pane, to) => {
+    const other = pane === 'primary' ? 'secondary' : 'primary'
+    const target = typeof to === 'string' && isDay(to) && !isDay(paths[pane]) && isDay(paths[other]) ? other : pane
+    if (target === 'primary') routerNavigate(to)
+    else setSecondaryPath(to)
+  }
+
   return (
     <div className="app-shell">
-      <div className="app-main">{children}</div>
+      <div className={split ? 'app-main app-main-split' : 'app-main'}>
+        {split ? (
+          <>
+            <PaneContext.Provider value={{ id: 'primary', navigate: (to) => goTo('primary', to) }}>
+              <div className="split-pane">{children}</div>
+            </PaneContext.Provider>
+            <PaneContext.Provider value={{ id: 'secondary', navigate: (to) => goTo('secondary', to) }}>
+              <SplitPane />
+            </PaneContext.Provider>
+          </>
+        ) : (
+          children
+        )}
+      </div>
       <BottomNav />
       {activeModal?.type === 'itemDetail' && isOpeningLockedItem && <UnlockPrompt />}
       {activeModal?.type === 'itemDetail' && !isOpeningLockedItem && (

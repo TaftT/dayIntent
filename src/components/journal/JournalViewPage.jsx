@@ -1,7 +1,9 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { usePaneNavigate } from '../../hooks/usePane.jsx'
 import { endOfMonth, startOfMonth, addMonths, format } from 'date-fns'
 import { TopBar } from '../layout/TopBar.jsx'
+import { KebabMenu } from '../shared/KebabMenu.jsx'
+import { useAppStore } from '../../store/useAppStore.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { isRichTextEmpty } from '../../utils/richText.js'
 import { formatDayHeading, fromDateStr, toDateStr, todayStr } from '../../utils/dateUtils.js'
@@ -19,6 +21,14 @@ export function JournalViewPage() {
   const items = useEntityStore((s) => s.items)
   const [range, setRange] = useState(() => monthRangeOf(new Date()))
   const scrollRef = useRef(null)
+  const navigate = usePaneNavigate()
+  const openModal = useAppStore((s) => s.openModal)
+  const setExcluded = useEntityStore((s) => s.setInstanceJournalExcluded)
+  // Editing a day's journal text happens in the day view's journal panel.
+  const editDay = (date) => {
+    useAppStore.setState({ journalOpen: true })
+    navigate(`/day/${date}`)
+  }
 
   // Item notes the user hasn't toggled out of the journal, keyed by date.
   const notesByDate = useMemo(() => {
@@ -28,7 +38,10 @@ export function JournalViewPage() {
       if (inst.date < range.from || inst.date > range.to) continue
       const item = items.find((i) => i.id === inst.itemId)
       if (!item) continue
-      map.set(inst.date, [...(map.get(inst.date) ?? []), { id: inst.id, title: item.title, notes: inst.notes }])
+      map.set(inst.date, [
+        ...(map.get(inst.date) ?? []),
+        { id: inst.id, itemId: item.id, date: inst.date, title: item.title, notes: inst.notes },
+      ])
     }
     return map
   }, [allInstances, items, range])
@@ -97,18 +110,39 @@ export function JournalViewPage() {
           entries.map((j) => (
             <article key={j.date} className="journal-view-entry">
               <header className="journal-view-entry-header">
-                <Link to={`/day/${j.date}`}>{formatDayHeading(j.date)}</Link>
+                <a
+                  href={`/day/${j.date}`}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    navigate(`/day/${j.date}`)
+                  }}
+                >
+                  {formatDayHeading(j.date)}
+                </a>
                 <span className="journal-view-moods">
                   {j.mood}
                   {j.spouseMood ? ` ${j.spouseMood}` : ''}
                 </span>
+                <KebabMenu
+                  label={`Actions for ${formatDayHeading(j.date)}`}
+                  actions={[{ label: 'Edit', onClick: () => editDay(j.date) }]}
+                />
               </header>
               {!isBlank(j.content) && (
                 <div className="journal-view-entry-body" dangerouslySetInnerHTML={{ __html: j.content }} />
               )}
               {j.itemNotes.map((n) => (
                 <div key={n.id} className="day-item-note">
-                  <div className="day-item-note-title">{n.title}</div>
+                  <div className="day-item-note-header">
+                    <div className="day-item-note-title">{n.title}</div>
+                    <KebabMenu
+                      label={`Actions for ${n.title}`}
+                      actions={[
+                        { label: 'Edit', onClick: () => openModal('itemDetail', { itemId: n.itemId, instanceId: n.id, date: n.date }) },
+                        { label: 'Hide from journal', onClick: () => setExcluded(n.id, true) },
+                      ]}
+                    />
+                  </div>
                   <div className="day-item-note-body" dangerouslySetInnerHTML={{ __html: n.notes }} />
                 </div>
               ))}

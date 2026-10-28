@@ -35,6 +35,12 @@ const PATHS = {
       <path d="M8 8h7M8 12h7" />
     </>
   ),
+  split: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M12 4v16" />
+    </>
+  ),
   search: (
     <>
       <circle cx="11" cy="11" r="6" />

@@ -47,6 +47,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   const setInstancePercentComplete = useEntityStore((s) => s.setInstancePercentComplete)
   const setInstanceNotes = useEntityStore((s) => s.setInstanceNotes)
   const setInstanceJournalExcluded = useEntityStore((s) => s.setInstanceJournalExcluded)
+  const setJournalExcludedForItem = useEntityStore((s) => s.setJournalExcludedForItem)
   const setInstanceDuration = useEntityStore((s) => s.setInstanceDuration)
   const setInstanceOverrides = useEntityStore((s) => s.setInstanceOverrides)
 
@@ -209,8 +210,12 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
         if (notes !== instance?.notes) {
           await setInstanceNotes(instanceId, notes)
         }
+        // Applied before any series split below, while the occurrences still
+        // belong to this item. "This & future" / "All events" carry the
+        // journal choice across the series like the other series-wide edits.
         if (inJournal === Boolean(instance?.journalExcluded)) {
-          await setInstanceJournalExcluded(instanceId, !inJournal)
+          if (scope === 'this') await setInstanceJournalExcluded(instanceId, !inJournal)
+          else await setJournalExcludedForItem(itemId, !inJournal, scope === 'future' ? scheduledDate : null)
         }
         if (scopeToInstance && (effectiveDuration !== instance?.durationMinutes || isAllDay !== instance?.isAllDay)) {
           await setInstanceDuration(instanceId, effectiveDuration, isAllDay)
