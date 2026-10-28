@@ -40,6 +40,7 @@
  * @property {number|null} durationMinutes
  * @property {boolean} isAllDay
  * @property {string} notes - independent per occurrence, seeded from the item's notes when created
+ * @property {boolean} [journalExcluded] - true to leave this occurrence's notes out of the journal
  * @property {number} percentComplete - 0-100, independent per occurrence
  * @property {number|null} startPercent
  * @property {'pending'|'completed'|'worked_on'|'ghost'} status
