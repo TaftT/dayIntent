@@ -35,7 +35,9 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: instance.id,
     data: { instance },
-    disabled: isLocked,
+    // Cloud-sync-locked items are hidden; user-pinned (instance.locked) ones stay
+    // visible but can't be dragged.
+    disabled: isLocked || Boolean(instance.locked),
   })
 
   // A single click opens the item; a double-click toggles it in/out of the
@@ -114,6 +116,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
             <StatusCircle status={status} size={15} />
           </button>
           <span className="instance-line-title">{item.title}</span>
+          {instance.locked && <span className="instance-pin-badge" title="Locked">🔒</span>}
           {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
           {signedIn && item.syncEnabled && (
             <span className="instance-sync-badge" title="Synced to cloud">☁</span>
@@ -177,6 +180,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
       </button>
       <div className="instance-block-title">
         {item.title}
+        {instance.locked && <span className="instance-pin-badge" title="Locked">🔒</span>}
         {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
         {signedIn && item.syncEnabled && (
           <span className="instance-sync-badge" title="Synced to cloud">☁</span>

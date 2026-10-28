@@ -134,7 +134,7 @@ export function DayView() {
     const targetIds = isGroupDrag(event) ? selectedInstanceIds : [dragged.id]
     const targets = targetIds
       .map((id) => (id === dragged.id ? dragged : instances.find((i) => i.id === id)))
-      .filter((i) => i && !i.isAllDay && i.time)
+      .filter((i) => i && !i.isAllDay && i.time && !i.locked)
 
     for (const inst of targets) {
       const newTime = applyDeltaToTime(inst.time, delta.y, inst.durationMinutes ?? 30)

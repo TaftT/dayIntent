@@ -4,6 +4,7 @@ import { format, isSameMonth } from 'date-fns'
 import { Icon } from '../shared/Icon.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
+import { useInstance } from '../../hooks/useInstance.js'
 import { useMonthGridDays } from '../../hooks/useMonthGridDays.js'
 import { todayStr, addDaysStr, toDateStr } from '../../utils/dateUtils.js'
 
@@ -24,6 +25,8 @@ export function ScheduleMenu({ item, instanceId }) {
   const btnRef = useRef(null)
   const menuRef = useRef(null)
   const scheduled = Boolean(instanceId)
+  // A locked occurrence is changed from its own editor, where the cost is spelled out.
+  const pinned = Boolean(useInstance(instanceId)?.locked)
   const today = todayStr()
 
   // Fixed positioning (computed on open) so the list's own scroll container
@@ -82,7 +85,8 @@ export function ScheduleMenu({ item, instanceId }) {
         type="button"
         className="backlog-schedule-btn"
         aria-label={scheduled ? 'Reschedule' : 'Schedule'}
-        title={scheduled ? 'Reschedule' : 'Schedule'}
+        title={pinned ? 'Locked — open the item to change it' : scheduled ? 'Reschedule' : 'Schedule'}
+        disabled={pinned}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={toggle}

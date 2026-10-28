@@ -3600,3 +3600,36 @@
   top: 50%;
   background: var(--color-danger);
 }
+
+.instance-pin-badge {
+  margin-left: 4px;
+  font-size: 0.7rem;
+}
+
+.score-settings {
+  margin-top: 12px;
+}
+
+.score-settings summary {
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.score-settings-grid {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.score-settings-grid label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.85rem;
+}
+
+.score-settings-grid input {
+  width: 72px;
+}

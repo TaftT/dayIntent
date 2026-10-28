@@ -119,5 +119,16 @@ export async function regenerateFutureInstances(item, today) {
   }
   if (item.recurrence) {
     await ensureInstancesGenerated(item, today)
+    // A lock and a move history belong to the occurrence on that day, so they
+    // survive the regeneration rather than being silently reset by a series edit.
+    const kept = new Map(
+      nonFinalized.filter((i) => i.locked || i.moves?.length).map((i) => [i.date, { locked: i.locked, moves: i.moves }]),
+    )
+    if (kept.size > 0) {
+      for (const inst of await repo.getInstancesForItem(item.id)) {
+        const carry = kept.get(inst.date)
+        if (carry && !inst.finalized) await repo.saveInstance({ ...inst, ...carry })
+      }
+    }
   }
 }

@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Modal } from '../shared/Modal.jsx'
+import { ConfirmModal } from '../shared/ConfirmModal.jsx'
+import { moveDistanceMinutes, movePenalty } from '../../utils/scoring.js'
+import { loadScoringSettings } from '../../utils/scoringSettings.js'
 import { Button } from '../shared/Button.jsx'
 import { ToggleButton } from '../shared/ToggleButton.jsx'
 import { InfoTip } from '../shared/InfoTip.jsx'
@@ -48,6 +51,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   const setInstanceNotes = useEntityStore((s) => s.setInstanceNotes)
   const setInstanceJournalExcluded = useEntityStore((s) => s.setInstanceJournalExcluded)
   const setJournalExcludedForItem = useEntityStore((s) => s.setJournalExcludedForItem)
+  const setInstanceLocked = useEntityStore((s) => s.setInstanceLocked)
   const setInstanceDuration = useEntityStore((s) => s.setInstanceDuration)
   const setInstanceOverrides = useEntityStore((s) => s.setInstanceOverrides)
 
@@ -75,6 +79,10 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   )
   // Whether this occurrence's notes show in the journal (instances only).
   const [inJournal, setInJournal] = useState(!instance?.journalExcluded)
+  // Pinned: no dragging, and moving/deleting asks first (and moves cost more).
+  const [locked, setLocked] = useState(Boolean(instance?.locked))
+  // A confirmation waiting on the user: { title, message, confirmLabel, run }.
+  const [pendingConfirm, setPendingConfirm] = useState(null)
   const [isAllDay, setIsAllDay] = useState(instance ? instance.isAllDay : (existingItem?.isAllDay ?? false))
   const [scheduledDate, setScheduledDate] = useState(instance?.date ?? date ?? todayStr())
   const [startTime, setStartTime] = useState(instance?.time ?? time ?? '09:00')
@@ -122,7 +130,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   // values), 'all' changes the whole series, past included.
   // `percentOverride` lets "Mark complete" save 100% in the same call —
   // state set just before handleSave wouldn't be visible to it yet.
-  const handleSave = async (scope = 'this', percentOverride = null) => {
+  const handleSave = async (scope = 'this', percentOverride = null, confirmedLocked = false) => {
     if (savingRef.current) return
     const applyToSeries = scope !== 'this'
     const percent = percentOverride ?? percentComplete
@@ -132,6 +140,27 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
     }
     if (!scheduledDate) {
       setError('Pick a valid date')
+      return
+    }
+    // A locked occurrence can't have its date/time changed without an explicit
+    // OK, which also spells out the (larger) cost.
+    const wasLocked = Boolean(instance?.locked)
+    const movesLocked =
+      Boolean(instanceId) && wasLocked && (scheduledDate !== instance?.date || (!isAllDay && startTime !== instance?.time))
+    if (movesLocked && applyToSeries && startTime !== instance?.time) {
+      setError('This event is locked — unlock it to change the whole series’ time')
+      return
+    }
+    if (movesLocked && !confirmedLocked) {
+      const settings = loadScoringSettings()
+      const minutes = moveDistanceMinutes(instance.date, instance.isAllDay ? null : instance.time, scheduledDate, isAllDay ? null : startTime)
+      const cost = movePenalty({ minutes, locked: true }, settings)
+      setPendingConfirm({
+        title: 'Move a locked item?',
+        message: `This item is locked. Moving it will cost about ${cost} points (${settings.lockedMultiplier}× the usual).`,
+        confirmLabel: 'Move it',
+        run: () => handleSave(scope, percentOverride, true),
+      })
       return
     }
     // Duration/all-day live on the item as the series' template. Editing one
@@ -194,16 +223,23 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
         // falls on, its own progress) go first and are independent of the
         // series — moving this occurrence must not depend on, or be undone
         // by, the item-level save below.
-        if (scheduledDate !== instance?.date) {
-          await moveInstanceDate(instanceId, scheduledDate)
+        const dateChanged = scheduledDate !== instance?.date
+        if (dateChanged) {
+          await moveInstanceDate(instanceId, scheduledDate, {
+            confirmedLocked,
+            toTime: !applyToSeries && !isAllDay ? startTime : undefined,
+          })
         }
         // Plain "Save" moves just this occurrence's time. "Save for all"
         // instead flows startTime into recurrence.time above, so updateItem
         // regenerates every future occurrence at the new time — no per-
         // instance move needed (and doing one here would be undone anyway).
         if (!applyToSeries && !isAllDay && startTime !== instance?.time) {
-          await moveInstanceTime(instanceId, startTime)
+          await moveInstanceTime(instanceId, startTime, { confirmedLocked, record: !dateChanged })
         }
+        // After the moves, so unlocking and moving in one save still counts
+        // (and is confirmed) as moving a locked item.
+        if (locked !== wasLocked) await setInstanceLocked(instanceId, locked)
         if (percent !== instance?.percentComplete) {
           await setInstancePercentComplete(instanceId, percent)
         }
@@ -239,6 +275,27 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
       savingRef.current = false
       setSaving(false)
     }
+  }
+
+  // Deleting or unscheduling a locked occurrence asks first.
+  const confirmIfLocked = (fn) => () =>
+    instance?.locked
+      ? setPendingConfirm({
+          title: 'Change a locked item?',
+          message: 'This item is locked. Are you sure you want to remove it?',
+          confirmLabel: 'Continue',
+          run: fn,
+        })
+      : fn()
+
+  const handleLockToggle = (next) => {
+    if (next || !instance?.locked) return setLocked(next)
+    setPendingConfirm({
+      title: 'Unlock this item?',
+      message: 'It will be draggable again. Moves while it was locked still count against your score.',
+      confirmLabel: 'Unlock',
+      run: () => setLocked(false),
+    })
   }
 
   const handleDelete = async () => {
@@ -312,22 +369,22 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
     <>
       {isRecurringInstance ? (
         <>
-          <Button variant="danger" onClick={handleDeleteThisInstance}>
+          <Button variant="danger" onClick={confirmIfLocked(handleDeleteThisInstance)}>
             Delete this event
           </Button>
-          <Button variant="danger" onClick={handleDeleteSeries} title="Removes this occurrence and every later one — earlier occurrences are kept">
+          <Button variant="danger" onClick={confirmIfLocked(handleDeleteSeries)} title="Removes this occurrence and every later one — earlier occurrences are kept">
             Delete series
           </Button>
         </>
       ) : (
         !isCreate && (
-          <Button variant="danger" onClick={handleDelete}>
+          <Button variant="danger" onClick={confirmIfLocked(handleDelete)}>
             Delete
           </Button>
         )
       )}
       {!isCreate && instanceId && !existingItem?.recurrence && (
-        <Button variant="subtle" onClick={handleUnschedule}>
+        <Button variant="subtle" onClick={confirmIfLocked(handleUnschedule)}>
           Unschedule
         </Button>
       )}
@@ -401,6 +458,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   )
 
   return (
+    <>
     <Modal
       title={isCreate ? 'New Item' : 'Edit Item'}
       onClose={closeModal}
@@ -447,6 +505,11 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
           <ToggleButton pressed={isAllDay} onChange={handleAllDayChange}>
             All day
           </ToggleButton>
+          {instanceId && (
+            <ToggleButton pressed={locked} onChange={handleLockToggle}>
+              🔒 Lock
+            </ToggleButton>
+          )}
         </div>
         {/* Own line: date + time + toggle together are wider than a phone, which
             pushed "All day" onto a line by itself. */}
@@ -587,5 +650,20 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
         </div>
       </div>
     </Modal>
+    {pendingConfirm && (
+      <ConfirmModal
+        title={pendingConfirm.title}
+        message={pendingConfirm.message}
+        confirmLabel={pendingConfirm.confirmLabel}
+        danger
+        onConfirm={() => {
+          const { run } = pendingConfirm
+          setPendingConfirm(null)
+          run()
+        }}
+        onCancel={() => setPendingConfirm(null)}
+      />
+    )}
+    </>
   )
 }
