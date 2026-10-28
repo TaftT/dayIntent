@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { DndContext, closestCenter } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
@@ -30,20 +30,29 @@ export function CategoryManagerModal({ initialTab = 'categories' }) {
   // New categories sync by default when signed in; switch off to keep one on this device only.
   const [newSynced, setNewSynced] = useState(true)
   const sensors = usePlannerSensors()
+  const [adding, setAdding] = useState(false)
+  const addingRef = useRef(false)
 
   const isGroups = tab === 'groups'
   const list = isGroups ? groups : categories
 
   const handleAdd = async () => {
     const name = newName.trim()
-    if (!name) return
-    if (isGroups) {
-      await createGroup(name)
-    } else {
-      const color = DEFAULT_COLOR_SWATCHES[categories.length % DEFAULT_COLOR_SWATCHES.length]
-      await saveCategory({ name, color, syncEnabled: signedIn && newSynced })
+    if (!name || addingRef.current) return
+    addingRef.current = true
+    setAdding(true)
+    try {
+      if (isGroups) {
+        await createGroup(name)
+      } else {
+        const color = DEFAULT_COLOR_SWATCHES[categories.length % DEFAULT_COLOR_SWATCHES.length]
+        await saveCategory({ name, color, syncEnabled: signedIn && newSynced })
+      }
+      setNewName('')
+    } finally {
+      addingRef.current = false
+      setAdding(false)
     }
-    setNewName('')
   }
 
   const handleDragEnd = ({ active, over }) => {
@@ -87,7 +96,7 @@ export function CategoryManagerModal({ initialTab = 'categories' }) {
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           />
-          <Button variant="primary" onClick={handleAdd}>
+          <Button variant="primary" onClick={handleAdd} loading={adding}>
             Add
           </Button>
         </div>
