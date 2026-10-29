@@ -562,6 +562,21 @@ export const useEntityStore = create((set, get) => ({
     return updated
   },
 
+  // Series version: locks/unlocks every upcoming (not yet finalized) occurrence
+  // of an item, or only those on/after `fromDate`.
+  setLockedForItem: async (itemId, locked, fromDate = null) => {
+    const instances = await repo.getInstancesForItem(itemId)
+    for (const inst of instances) {
+      if (inst.finalized || (fromDate && inst.date < fromDate)) continue
+      if (Boolean(inst.locked) === locked) continue
+      await repo.saveInstance({ ...inst, locked })
+    }
+    await get().refreshAllInstances()
+    const dates = Object.keys(get().instancesByDate)
+    const reloaded = await Promise.all(dates.map(async (d) => [d, await repo.getInstancesForDate(d)]))
+    set((s) => ({ instancesByDate: { ...s.instancesByDate, ...Object.fromEntries(reloaded) } }))
+  },
+
   unscheduleInstance: async (instanceId) => {
     const inst = await repo.getInstance(instanceId)
     await repo.deleteInstance(instanceId)

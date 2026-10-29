@@ -14,14 +14,34 @@ export function JournalPanel({ date }) {
   const [content, setContent] = useState(journal?.content ?? '')
   const saveTimeout = useRef(null)
 
+  const lastTyped = useRef(null) // latest HTML typed here, so our own save echoing back is ignored
+  const pending = useRef(false) // typed since the last save started
+
+  // A reset to the stored text moves the caret to the end, so only do it when
+  // the day changes or the text changed elsewhere — never for our own saves
+  // or while there are unsaved edits.
   useEffect(() => {
-    setContent(journal?.content ?? '')
+    lastTyped.current = null
+    pending.current = false
+  }, [date])
+
+  useEffect(() => {
+    if (pending.current) return
+    const stored = journal?.content ?? ''
+    if (lastTyped.current !== null && stored === lastTyped.current) return
+    lastTyped.current = null
+    setContent(stored)
   }, [date, journal?.content])
 
   const handleChange = (html) => {
     setContent(html)
+    lastTyped.current = html
+    pending.current = true
     clearTimeout(saveTimeout.current)
-    saveTimeout.current = setTimeout(() => save(html), 500)
+    saveTimeout.current = setTimeout(async () => {
+      pending.current = false
+      await save(html)
+    }, 500)
   }
 
   return (
