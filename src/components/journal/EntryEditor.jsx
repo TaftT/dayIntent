@@ -10,17 +10,26 @@ export function EntryEditor({ date, placeholder }) {
   const [content, setContent] = useState(journal?.content ?? '')
   const timer = useRef(null)
   const pending = useRef(null) // latest unsaved HTML, or null when nothing is waiting
+  const lastTyped = useRef(null) // latest HTML this editor produced
   const saveRef = useRef(save)
   saveRef.current = save
 
   // Pick up the stored text when it loads (or changes elsewhere), but never
   // while there are unsaved edits — that would overwrite what's being typed.
+  // Echoes of our own saves are ignored too: re-assigning the editor's HTML
+  // (even when it differs only by normalisation, or is a save or two behind)
+  // resets the caret, which showed up as jumping to the end while typing.
   useEffect(() => {
-    if (pending.current === null) setContent(journal?.content ?? '')
+    if (pending.current !== null) return
+    const stored = journal?.content ?? ''
+    if (lastTyped.current !== null && stored === lastTyped.current) return
+    lastTyped.current = null
+    setContent(stored)
   }, [journal?.content])
 
   const handleChange = (html) => {
     setContent(html)
+    lastTyped.current = html
     pending.current = html
     clearTimeout(timer.current)
     timer.current = setTimeout(async () => {

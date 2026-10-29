@@ -80,3 +80,21 @@ describe('locking', () => {
     )
   })
 })
+
+describe('locking a series', () => {
+  it('locks this and later occurrences, leaving earlier and finished ones alone', async () => {
+    const item = await repo.saveItem({ title: 'R', durationMinutes: 60 })
+    const mk = (date, over = {}) => repo.saveInstance({ itemId: item.id, date, time: '09:00', durationMinutes: 60, ...over })
+    const a = await mk('2099-01-05')
+    const b = await mk('2099-01-06')
+    const c = await mk('2099-01-07')
+    const done = await mk('2099-01-08', { finalized: true })
+
+    await store().setLockedForItem(item.id, true, '2099-01-06')
+    const locked = async (i) => Boolean((await repo.getInstance(i.id)).locked)
+    expect([await locked(a), await locked(b), await locked(c), await locked(done)]).toEqual([false, true, true, false])
+
+    await store().setLockedForItem(item.id, false)
+    expect(await locked(b)).toBe(false)
+  })
+})

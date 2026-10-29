@@ -52,6 +52,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   const setInstanceJournalExcluded = useEntityStore((s) => s.setInstanceJournalExcluded)
   const setJournalExcludedForItem = useEntityStore((s) => s.setJournalExcludedForItem)
   const setInstanceLocked = useEntityStore((s) => s.setInstanceLocked)
+  const setLockedForItem = useEntityStore((s) => s.setLockedForItem)
   const setInstanceDuration = useEntityStore((s) => s.setInstanceDuration)
   const setInstanceOverrides = useEntityStore((s) => s.setInstanceOverrides)
 
@@ -239,7 +240,12 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
         }
         // After the moves, so unlocking and moving in one save still counts
         // (and is confirmed) as moving a locked item.
-        if (locked !== wasLocked) await setInstanceLocked(instanceId, locked)
+        // "This & future" / "All events" carry the lock across the series. (Done
+        // before any series split below, while the occurrences are still this item's.)
+        if (locked !== wasLocked) {
+          if (scope === 'this') await setInstanceLocked(instanceId, locked)
+          else await setLockedForItem(itemId, locked, scope === 'future' ? scheduledDate : null)
+        }
         if (percent !== instance?.percentComplete) {
           await setInstancePercentComplete(instanceId, percent)
         }
