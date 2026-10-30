@@ -24,6 +24,7 @@ import { seedIfEmpty } from '../../data/devSeed.js'
 export function AppShell({ children }) {
   const init = useEntityStore((s) => s.init)
   const initialized = useEntityStore((s) => s.initialized)
+  const topUpRecurring = useEntityStore((s) => s.topUpRecurring)
   const items = useEntityStore((s) => s.items)
   const activeModal = useAppStore((s) => s.activeModal)
   const initAuth = useAuthStore((s) => s.init)
@@ -45,6 +46,21 @@ export function AppShell({ children }) {
     bootstrap()
     initAuth()
   }, [init, initAuth])
+
+  // A tab or installed app left open for days still needs its recurring series
+  // extended as the rolling window moves: re-check whenever it comes back into
+  // view, and hourly while it stays open.
+  useEffect(() => {
+    if (!initialized) return undefined
+    const check = () => topUpRecurring().catch(() => {})
+    const onVisible = () => document.visibilityState === 'visible' && check()
+    document.addEventListener('visibilitychange', onVisible)
+    const timer = setInterval(check, 60 * 60 * 1000)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      clearInterval(timer)
+    }
+  }, [initialized, topUpRecurring])
 
   if (!initialized) {
     return <div className="app-loading">Loading…</div>

@@ -657,6 +657,8 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
   }
 
   useEntityStore.getState().refreshItems()
+  // Pulled-in series may be due for more occurrences (deterministic ids keep two devices from duplicating them).
+  await useEntityStore.getState().topUpRecurring()
   await useEntityStore.getState().refreshAllInstances()
   await useEntityStore.getState().reloadLoadedDates()
   useEntityStore.getState().refreshCategories()

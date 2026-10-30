@@ -3,7 +3,10 @@ import { fromDateStr, toDateStr } from '../utils/dateUtils.js'
 import { generateId } from './idGenerator.js'
 import * as repo from './index.js'
 
-const GENERATION_HORIZON_DAYS = 60
+// Occurrences are only materialised this far ahead of today (a rolling window),
+// so a long-running or endless series never piles up instances. The window is
+// topped up by topUpRecurringInstances as time passes.
+export const GENERATION_HORIZON_DAYS = 60
 
 /**
  * Returns the list of occurrence date strings ('YYYY-MM-DD') for a recurrence
@@ -62,6 +65,26 @@ export function getOccurrencesBetween(rule, rangeStart, rangeEnd) {
   return results
 }
 
+function buildInstance(item, date, id = generateId()) {
+  const now = new Date().toISOString()
+  return {
+    id,
+    itemId: item.id,
+    date,
+    time: item.recurrence.time,
+    durationMinutes: item.durationMinutes,
+    isAllDay: !item.recurrence.time,
+    notes: item.notes, // seeded from the template, then independent per occurrence from here on
+    percentComplete: 0, // every occurrence of a series starts fresh, independent of the others
+    startPercent: 0, // baseline for "did you do any work this day" — every occurrence starts at 0
+    status: 'pending',
+    finalized: false,
+    finalPercent: null,
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+
 /**
  * Ensures ScheduledInstances exist for an item's recurrence out to a horizon
  * (today + 60 days by default). Safe to call repeatedly (idempotent) — will
@@ -82,26 +105,54 @@ export async function ensureInstancesGenerated(item, today, horizonDays = GENERA
 
   const toCreate = occurrenceDates
     .filter((date) => !existingDates.has(date))
-    .map((date) => ({
-      id: generateId(),
-      itemId: item.id,
-      date,
-      time: item.recurrence.time,
-      durationMinutes: item.durationMinutes,
-      isAllDay: !item.recurrence.time,
-      notes: item.notes, // seeded from the template, then independent per occurrence from here on
-      percentComplete: 0, // every occurrence of a series starts fresh, independent of the others
-      startPercent: 0, // baseline for "did you do any work this day" — every occurrence starts at 0
-      status: 'pending',
-      finalized: false,
-      finalPercent: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }))
+    .map((date) => buildInstance(item, date))
 
   if (toCreate.length > 0) {
     await repo.bulkSaveInstances(toCreate)
   }
+}
+
+/**
+ * Keeps every recurring series generating as time passes. Ensures occurrences
+ * exist out to today + horizonDays, but only *beyond* what the series already
+ * has: a series' "frontier" is its latest instance inside the window, and new
+ * occurrences start the day after it (never earlier than today). That makes
+ * this safe to run on every app start / day change / sync because it can't
+ * bring back an occurrence the user deleted or moved earlier in the window,
+ * and it doesn't invent a backlog of missed past days for a series that went
+ * quiet.
+ *
+ * Ids are deterministic (item + date) so two devices topping up the same
+ * series before they've synced produce the same records instead of duplicates.
+ * (Edits still regenerate with random ids via ensureInstancesGenerated.)
+ *
+ * @param {import('./types.js').Item[]} items
+ * @param {string} today 'YYYY-MM-DD'
+ * @returns {Promise<number>} how many instances were created
+ */
+export async function topUpRecurringInstances(items, today, horizonDays = GENERATION_HORIZON_DAYS) {
+  const horizonEnd = toDateStr(addDays(fromDateStr(today), horizonDays))
+  const byItem = new Map()
+  for (const inst of await repo.getAllInstances()) {
+    if (!byItem.has(inst.itemId)) byItem.set(inst.itemId, [])
+    byItem.get(inst.itemId).push(inst)
+  }
+
+  const toCreate = []
+  for (const item of items) {
+    if (!item.recurrence || item.archived) continue
+    const own = byItem.get(item.id) ?? []
+    // Anything beyond today's window (e.g. one dragged months ahead) doesn't count as the frontier.
+    const frontier = own.map((i) => i.date).filter((d) => d <= horizonEnd).sort().pop() ?? null
+    const fromDate = frontier ? toDateStr(addDays(fromDateStr(frontier), 1)) : item.recurrence.startDate
+    const start = fromDate > today ? fromDate : today
+    const have = new Set(own.map((i) => i.date))
+    for (const date of getOccurrencesBetween(item.recurrence, start, horizonEnd)) {
+      if (!have.has(date)) toCreate.push(buildInstance(item, date, `${item.id}_${date}`))
+    }
+  }
+  if (toCreate.length > 0) await repo.bulkSaveInstances(toCreate)
+  return toCreate.length
 }
 
 /**
