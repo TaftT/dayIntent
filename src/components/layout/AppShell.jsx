@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/useAuthStore.js'
 import { ItemDetailModal } from '../itemdetail/ItemDetailModal.jsx'
 import { CategoryManagerModal } from '../categories/CategoryManagerModal.jsx'
 import { SearchModal } from '../search/SearchModal.jsx'
+import { WeatherModal } from '../weather/WeatherModal.jsx'
 import { DatePickerModal } from '../dayview/DatePickerModal.jsx'
 import { QuickAddModal } from '../dayview/QuickAddModal.jsx'
 import { GroupDetailModal } from '../backlog/GroupDetailModal.jsx'
@@ -93,6 +94,7 @@ export function AppShell({ children }) {
       )}
       {activeModal?.type === 'categoryManager' && <CategoryManagerModal {...activeModal.props} />}
       {activeModal?.type === 'search' && <SearchModal />}
+      {activeModal?.type === 'weather' && <WeatherModal />}
       {activeModal?.type === 'quickAdd' && <QuickAddModal {...activeModal.props} />}
       {activeModal?.type === 'datePicker' && <DatePickerModal {...activeModal.props} />}
       {activeModal?.type === 'groupDetail' && (

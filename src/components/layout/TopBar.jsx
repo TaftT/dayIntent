@@ -64,6 +64,11 @@ export function TopBar({ date }) {
             <Icon name="split" />
           </button>
         )}
+        {date && (
+          <button className="icon-button" onClick={() => openModal('weather')} aria-label="Weather forecast settings" title="Weather forecast">
+            🌤️
+          </button>
+        )}
         <button className="icon-button" onClick={() => openModal('search')} aria-label="Search">
           <Icon name="search" />
         </button>

@@ -16,6 +16,8 @@ import { RecurrenceEditor } from './RecurrenceEditor.jsx'
 import { GroupSection } from './GroupSection.jsx'
 import { GoogleCalendarButton } from './GoogleCalendarButton.jsx'
 import { RichTextEditor } from '../shared/RichTextEditor.jsx'
+import { PlaceSearch } from '../weather/PlaceSearch.jsx'
+import { useWeatherStore } from '../../store/useWeatherStore.js'
 import { useItem } from '../../hooks/useItem.js'
 import { useInstance } from '../../hooks/useInstance.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
@@ -94,6 +96,9 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   // won't be pushed to the cloud on a later sign-in.
   const [syncEnabled, setSyncEnabled] = useState(existingItem?.syncEnabled ?? signedIn)
   const [groupId, setGroupId] = useState(existingItem?.groupId ?? '')
+  // Where it happens; the day view shows that place's weather while it's on.
+  const [location, setLocation] = useState(existingItem?.location ?? null)
+  const weatherEnabled = useWeatherStore((s) => s.settings.enabled)
   // When this task was last sent to Google Calendar (see GoogleCalendarButton).
   const [googleSharedAt, setGoogleSharedAt] = useState(existingItem?.googleSharedAt ?? null)
   const [error, setError] = useState('')
@@ -207,6 +212,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
       syncEnabled,
       groupId: groupId || null,
       googleSharedAt,
+      location,
     }
 
     savingRef.current = true
@@ -491,6 +497,22 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
         {error && <div className="form-error">{error}</div>}
 
         <CategoryPicker categoryId={categoryId} onChange={setCategoryId} syncedOnly={signedIn && syncEnabled} />
+
+        {(weatherEnabled || location) && (
+          <div className="item-location">
+            {location ? (
+              <div className="item-location-current">
+                <span>📍 {location.label || `${location.lat}, ${location.lon}`}</span>
+                <button type="button" className="icon-button" onClick={() => setLocation(null)} aria-label="Remove location">
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <PlaceSearch placeholder="📍 Location (for weather)" onPick={setLocation} />
+            )}
+            {location && isRecurringInstance && <p className="stats-section-hint">The location applies to the whole series.</p>}
+          </div>
+        )}
 
         <div className="scheduled-info-row">
           {date && (

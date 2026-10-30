@@ -422,6 +422,43 @@ export async function saveJournal(journal, { preserveTimestamp = false } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Weather history (what the weather actually was)
+// ---------------------------------------------------------------------------
+
+/** @returns {Promise<import('./types.js').WeatherDay[]>} */
+export async function getAllWeatherDays() {
+  const db = await getDb()
+  return db.getAll('weatherDays')
+}
+
+/** @returns {Promise<import('./types.js').WeatherDay|null>} */
+export async function getWeatherDay(id) {
+  const db = await getDb()
+  return (await db.get('weatherDays', id)) ?? null
+}
+
+/**
+ * @param {import('./types.js').WeatherDay} day - already merged by the caller (hours are a union, never a partial overwrite)
+ * @param {{preserveTimestamp?: boolean}} [opts] - see saveItem
+ */
+export async function saveWeatherDay(day, { preserveTimestamp = false } = {}) {
+  const db = await getDb()
+  const saved = { ...day, updatedAt: preserveTimestamp && day.updatedAt ? day.updatedAt : nowIso() }
+  await db.put('weatherDays', saved)
+  return saved
+}
+
+/** Drop recorded days before `beforeDate` ('YYYY-MM-DD') from this device. */
+export async function pruneWeatherDays(beforeDate) {
+  const db = await getDb()
+  const tx = db.transaction('weatherDays', 'readwrite')
+  for (const day of await tx.store.getAll()) {
+    if (day.date < beforeDate) await tx.store.delete(day.id)
+  }
+  await tx.done
+}
+
+// ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------
 

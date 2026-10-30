@@ -1,7 +1,7 @@
 import { openDB } from 'idb'
 
 const DB_NAME = 'planner-app'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 /** @type {Promise<import('idb').IDBPDatabase>|null} */
 let dbPromise = null
@@ -28,6 +28,11 @@ export function getDb() {
         // v2: backlog groups (named, colored, ordered) as their own records.
         if (oldVersion < 2) {
           db.createObjectStore('groups', { keyPath: 'id' })
+        }
+        // v3: recorded weather, one record per day per place (see weather/historyDays.js).
+        if (oldVersion < 3) {
+          const days = db.createObjectStore('weatherDays', { keyPath: 'id' })
+          days.createIndex('date', 'date')
         }
       },
     })
