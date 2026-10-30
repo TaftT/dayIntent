@@ -115,6 +115,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
       Boolean(recurrence) ||
       Boolean(existingItem?.groupId) ||
       Boolean(existingItem?.googleSharedAt) ||
+      Boolean(existingItem?.location) ||
       isHabit ||
       (!isCreate && percentComplete > 0) ||
       notes.replace(/<[^>]*>|&nbsp;/g, '').trim() !== '' ||
@@ -498,22 +499,6 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
 
         <CategoryPicker categoryId={categoryId} onChange={setCategoryId} syncedOnly={signedIn && syncEnabled} />
 
-        {(weatherEnabled || location) && (
-          <div className="item-location">
-            {location ? (
-              <div className="item-location-current">
-                <span>📍 {location.label || `${location.lat}, ${location.lon}`}</span>
-                <button type="button" className="icon-button" onClick={() => setLocation(null)} aria-label="Remove location">
-                  ✕
-                </button>
-              </div>
-            ) : (
-              <PlaceSearch placeholder="📍 Location (for weather)" onPick={setLocation} />
-            )}
-            {location && isRecurringInstance && <p className="stats-section-hint">The location applies to the whole series.</p>}
-          </div>
-        )}
-
         <div className="scheduled-info-row">
           {date && (
             <input
@@ -610,6 +595,22 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
               Show notes in journal
             </ToggleButton>
           )}
+
+        {(weatherEnabled || location) && (
+          <div className="item-location">
+            {location ? (
+              <div className="item-location-current">
+                <span>📍 {location.label || `${location.lat}, ${location.lon}`}</span>
+                <button type="button" className="icon-button" onClick={() => setLocation(null)} aria-label="Remove location">
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <PlaceSearch placeholder="📍 Location (for weather)" onPick={setLocation} />
+            )}
+            {location && isRecurringInstance && <p className="stats-section-hint">The location applies to the whole series.</p>}
+          </div>
+        )}
 
           <RecurrenceEditor recurrence={recurrence} defaultStartDate={scheduledDate} onChange={setRecurrence} />
 

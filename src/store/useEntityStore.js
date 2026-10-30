@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import * as repo from '../data/index.js'
 import { useAuthStore } from './useAuthStore.js'
 import { runRollover } from '../data/rollover.js'
-import { regenerateFutureInstances } from '../data/recurrence.js'
+import { regenerateFutureInstances, topUpRecurringInstances } from '../data/recurrence.js'
 import { reorderWithinGroup } from '../utils/groupOrder.js'
 import { todayStr, addDaysStr, timeStrToMinutes } from '../utils/dateUtils.js'
 import { DEFAULT_COLOR_SWATCHES } from '../utils/colorUtils.js'
@@ -79,6 +79,7 @@ export const useEntityStore = create((set, get) => ({
   init: async () => {
     if (get().initialized) return
     await runRollover(todayStr())
+    await topUpRecurringInstances(await repo.getAllItems(), todayStr())
     await get().migrateGroupNames()
     await Promise.all([
       get().refreshCategories(),
@@ -113,6 +114,17 @@ export const useEntityStore = create((set, get) => ({
   refreshAllJournals: async () => {
     const allJournals = await repo.getAllJournals()
     set({ allJournals })
+  },
+
+  // Extends every recurring series out to the rolling horizon. Cheap and safe
+  // to call often (app start, day change, after a sync).
+  topUpRecurring: async () => {
+    const created = await topUpRecurringInstances(await repo.getAllItems(), todayStr())
+    if (created > 0) {
+      await get().refreshAllInstances()
+      await get().reloadLoadedDates()
+    }
+    return created
   },
 
   loadInstancesForDate: async (date) => {

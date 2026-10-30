@@ -10,6 +10,8 @@ import { isTodayStr, timeStrToMinutes } from '../../utils/dateUtils.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useHourlyWeather } from '../../hooks/useHourlyWeather.js'
 import { hourLocationsForDay } from '../../weather/hourLocations.js'
+import { locKey } from '../../weather/weatherSettings.js'
+import { useWeatherStore } from '../../store/useWeatherStore.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
@@ -26,6 +28,19 @@ export function DayGrid({ instances, date, continuations = [] }) {
     [date, instances, allInstances, items],
   )
   const weatherByHour = useHourlyWeather(date, eventLocations)
+  const weatherOn = useWeatherStore((s) => s.settings.enabled)
+
+  // Where an event's location starts (its place) and ends (back to home) in the gutter.
+  const sameLoc = (a, b) => (a ? locKey(a) : null) === (b ? locKey(b) : null)
+  const placeMarkers = (hour) => {
+    if (!weatherOn) return {}
+    const cur = eventLocations[hour]
+    const prev = hour > 0 ? eventLocations[hour - 1] : null
+    return {
+      startPlace: cur && !sameLoc(cur, prev) ? cur.label || 'Event location' : null,
+      endPlace: prev && !cur ? 'Home' : null,
+    }
+  }
 
   const timedInstances = instances.filter((i) => !i.isAllDay)
 
@@ -64,7 +79,7 @@ export function DayGrid({ instances, date, continuations = [] }) {
           key={hour}
           hour={hour}
           weather={weatherByHour.get(hour)}
-          showPlace={Boolean(weatherByHour.get(hour)?.place) && weatherByHour.get(hour - 1)?.place !== weatherByHour.get(hour)?.place}
+          {...placeMarkers(hour)}
         />
       ))}
       {isTodayStr(date) && <CurrentTimeIndicator />}
