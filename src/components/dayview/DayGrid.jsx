@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { HourRow } from './HourRow.jsx'
 import { InstanceBlock } from './InstanceBlock.jsx'
 import { OvernightContinuationBlock } from './OvernightContinuationBlock.jsx'
@@ -8,6 +8,8 @@ import { computeOverlapIndices } from './overlapLayout.js'
 import { pxOffsetToTimeStr } from '../../utils/dnd/timeFromPointer.js'
 import { isTodayStr, timeStrToMinutes } from '../../utils/dateUtils.js'
 import { useAppStore } from '../../store/useAppStore.js'
+import { useHourlyWeather } from '../../hooks/useHourlyWeather.js'
+import { hourLocationsForDay } from '../../weather/hourLocations.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
@@ -18,6 +20,12 @@ export function DayGrid({ instances, date, continuations = [] }) {
   const selectedInstanceIds = useAppStore((s) => s.selectedInstanceIds)
   const clearInstanceSelection = useAppStore((s) => s.clearInstanceSelection)
   const items = useEntityStore((s) => s.items)
+  const allInstances = useEntityStore((s) => s.allInstances)
+  const eventLocations = useMemo(
+    () => hourLocationsForDay(date, instances, allInstances, items),
+    [date, instances, allInstances, items],
+  )
+  const weatherByHour = useHourlyWeather(date, eventLocations)
 
   const timedInstances = instances.filter((i) => !i.isAllDay)
 
@@ -52,7 +60,12 @@ export function DayGrid({ instances, date, continuations = [] }) {
   return (
     <div className="day-grid" ref={gridRef} style={{ height: DAY_HEIGHT }} onClick={handleGridClick}>
       {HOURS.map((hour) => (
-        <HourRow key={hour} hour={hour} />
+        <HourRow
+          key={hour}
+          hour={hour}
+          weather={weatherByHour.get(hour)}
+          showPlace={Boolean(weatherByHour.get(hour)?.place) && weatherByHour.get(hour - 1)?.place !== weatherByHour.get(hour)?.place}
+        />
       ))}
       {isTodayStr(date) && <CurrentTimeIndicator />}
       {continuations.map((c) => (

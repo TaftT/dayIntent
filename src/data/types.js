@@ -84,3 +84,17 @@
  */
 
 export {}
+
+/**
+ * What the weather actually was at one place on one day. One record per
+ * (day, place) so it syncs like a journal entry; hours from different devices
+ * are merged as a union.
+ * @typedef {Object} WeatherDay
+ * @property {string} id - see dayId() in weather/historyDays.js
+ * @property {string} date - 'YYYY-MM-DD'
+ * @property {number} lat
+ * @property {number} lon
+ * @property {string} label
+ * @property {Object<string, [string, number, number|null]>} hours - 'HH' -> [condition, isDaytime 1/0, tempF]
+ * @property {string} updatedAt
+ */

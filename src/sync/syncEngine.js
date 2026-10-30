@@ -31,6 +31,9 @@ import { rtdb, firebaseEnabled } from '../firebase/config.js'
 import { generateSalt, generateDataKey, wrapKey, unwrapKey, encryptJson, decryptJson } from '../firebase/crypto.js'
 import * as localRepo from '../data/indexedDbRepository.js'
 import { useEntityStore } from '../store/useEntityStore.js'
+import { useWeatherStore } from '../store/useWeatherStore.js'
+import { loadWeatherSettings } from '../weather/weatherSettings.js'
+import { hasExtraHours, unionHours } from '../weather/historyDays.js'
 
 // { uid, masterKey, pullOnly } while signed in and sync is active. pullOnly is
 // set when this device's local data was last synced under a different account
@@ -49,6 +52,7 @@ const instancesPath = (uid) => `users/${uid}/instances`
 const categoriesPath = (uid) => `users/${uid}/categories`
 const groupsPath = (uid) => `users/${uid}/groups`
 const journalsPath = (uid) => `users/${uid}/journals`
+const weatherPath = (uid) => `users/${uid}/weatherDays`
 const saltPath = (uid) => `users/${uid}/meta/salt`
 const deletedItemsPath = (uid) => `users/${uid}/deletedItems`
 const deletedInstancesPath = (uid) => `users/${uid}/deletedInstances`
@@ -300,6 +304,107 @@ async function mergeRemoteJournal(date, record) {
   }
 }
 
+// ---- Recorded weather ----------------------------------------------------
+//
+// Optional (a weather setting, off by default) and device-agnostic: one record
+// per day per place, like a journal entry. Unlike the other collections these
+// are append-only facts, so two devices that each recorded different hours of
+// the same day merge as a union of hours rather than last-write-wins (which
+// would drop one device's hours). Nothing here runs unless the setting is on.
+
+const weatherSyncOn = () => loadWeatherSettings().syncHistory === true
+let weatherDetach = []
+
+export async function pushWeatherDay(day) {
+  if (!canPush() || !weatherSyncOn()) return
+  const envelope = await buildEnvelope(day, state.masterKey)
+  await set(ref(rtdb, `${weatherPath(state.uid)}/${day.id}`), { updatedAt: resolveUpdatedAt(day), ...envelope })
+}
+
+// Fold a remote day into the local one. Returns the merged local record when
+// it holds hours the cloud lacked (so the caller can push it back), else null.
+async function applyRemoteWeatherDay(remote) {
+  const local = await localRepo.getWeatherDay(remote.id)
+  if (!local) {
+    await localRepo.saveWeatherDay(remote, { preserveTimestamp: true })
+    return null
+  }
+  const localExtra = hasExtraHours(local.hours, remote.hours)
+  const remoteExtra = hasExtraHours(remote.hours, local.hours)
+  if (!localExtra && !remoteExtra) return null
+  const merged = { ...local, label: local.label || remote.label, hours: unionHours(local.hours, remote.hours) }
+  // Local-only hours make this newer than the cloud copy (fresh timestamp, to be
+  // pushed); otherwise it just mirrors the cloud's timestamp.
+  return localExtra
+    ? localRepo.saveWeatherDay(merged)
+    : (await localRepo.saveWeatherDay({ ...merged, updatedAt: remote.updatedAt }, { preserveTimestamp: true }), null)
+}
+
+async function mergeRemoteWeatherDay(id, record) {
+  if (!state || !record || !weatherSyncOn()) return
+  const opened = await safeOpenEnvelope(record, state.masterKey)
+  if (!opened.ok) return
+  const toPush = await applyRemoteWeatherDay(opened.value)
+  if (toPush) await pushWeatherDay(toPush).catch(() => {})
+  await useWeatherStore.getState().reloadHistory()
+}
+
+async function reconcileWeather(uid, masterKey, { pullOnly = false } = {}, stats = { attempts: 0, successes: 0 }) {
+  const snap = await get(ref(rtdb, weatherPath(uid)))
+  const remote = snap.exists() ? snap.val() : {}
+  const localById = new Map((await localRepo.getAllWeatherDays()).map((d) => [d.id, d]))
+
+  await Promise.all(
+    Object.entries(remote)
+      .filter(([id, record]) => {
+        const local = localById.get(id)
+        return !local || record.updatedAt > local.updatedAt
+      })
+      .map(async ([, record]) => {
+        const opened = await tryOpenEnvelope(record, masterKey, stats)
+        if (opened.ok) await applyRemoteWeatherDay(opened.value)
+      })
+  )
+
+  if (!pullOnly) {
+    const updates = {}
+    await Promise.all(
+      (await localRepo.getAllWeatherDays()).map(async (day) => {
+        const record = remote[day.id]
+        if (!record || day.updatedAt > record.updatedAt) {
+          await buildEnvelopeSafely(day, masterKey, `${weatherPath(uid)}/${day.id}`, (envelope) => ({
+            updatedAt: resolveUpdatedAt(day),
+            ...envelope,
+          }), updates)
+        }
+      })
+    )
+    if (Object.keys(updates).length > 0) await update(ref(rtdb), updates)
+  }
+  await useWeatherStore.getState().reloadHistory()
+  return new Set(Object.keys(remote))
+}
+
+function attachWeatherListeners(uid, knownIds) {
+  const r = ref(rtdb, weatherPath(uid))
+  weatherDetach.push(onChildAdded(r, (snap) => { if (!knownIds.has(snap.key)) mergeRemoteWeatherDay(snap.key, snap.val()) }))
+  weatherDetach.push(onChildChanged(r, (snap) => mergeRemoteWeatherDay(snap.key, snap.val())))
+}
+
+function detachWeatherListeners() {
+  for (const detach of weatherDetach) detach()
+  weatherDetach = []
+}
+
+/** Called when the user flips the weather-sync setting while signed in: catch up now (on) or stop listening (off). Cloud copies are left in place when turned off. */
+export async function setWeatherSync(enabled) {
+  if (!state || !firebaseEnabled) return
+  detachWeatherListeners()
+  if (!enabled) return
+  const known = await reconcileWeather(state.uid, state.masterKey, { pullOnly: state.pullOnly })
+  attachWeatherListeners(state.uid, known)
+}
+
 // ---- Start / stop -----------------------------------------------------------
 
 // A full reconcile can touch many records — each one used to mean a
@@ -540,6 +645,9 @@ async function reconcileAll(uid, masterKey, { pullOnly = false } = {}) {
   )
   if (Object.keys(journalUpdates).length > 0) await update(ref(rtdb), journalUpdates)
 
+  // Recorded weather, only when the user opted in.
+  knownIds.weatherIds = weatherSyncOn() ? await reconcileWeather(uid, masterKey, { pullOnly }, stats) : new Set()
+
   // Every decrypt attempt failing (with at least one attempted) means the
   // master key itself is wrong, not that a handful of records are corrupt —
   // surface that as a real error so unlock() treats it as a bad password
@@ -587,6 +695,7 @@ function attachListeners(uid, knownIds) {
   detachFns.push(onChildChanged(journalsR, (snap) => mergeRemoteJournal(snap.key, snap.val())))
   detachFns.push(onChildAdded(deletedItemsR, (snap) => { if (!knownIds.deletedItemIds.has(snap.key)) handleRemoteItemDeleted(snap.key) }))
   detachFns.push(onChildAdded(deletedInstancesR, (snap) => { if (!knownIds.deletedInstanceIds.has(snap.key)) handleRemoteInstanceDeleted(snap.key) }))
+  if (weatherSyncOn()) attachWeatherListeners(uid, knownIds.weatherIds ?? new Set())
 }
 
 // IndexedDB is one shared local database per browser, not one per signed-in
@@ -645,6 +754,7 @@ export async function start(uid, masterKey, { force = false } = {}) {
 export function stop() {
   for (const detach of detachFns) detach()
   detachFns = []
+  detachWeatherListeners()
   state = null
 }
 

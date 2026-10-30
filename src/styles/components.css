@@ -3633,3 +3633,152 @@
 .score-settings-grid input {
   width: 72px;
 }
+
+/* Weather */
+
+.hour-weather {
+  position: absolute;
+  left: calc(-1 * var(--sidebar-width));
+  top: 7px;
+  width: calc(var(--sidebar-width) - 6px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  pointer-events: none; /* taps still add an item at this time */
+}
+
+.hour-weather-main {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.hour-weather-rain {
+  font-size: 0.65rem;
+  color: #3b82f6;
+}
+
+.hour-weather-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.weather-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.weather-subhead {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+}
+
+.weather-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+
+.weather-coords {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.weather-coords input {
+  width: 110px;
+}
+
+.weather-status {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.weather-error {
+  color: var(--color-danger, #c0392b);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.hour-weather-place {
+  max-width: calc(var(--sidebar-width) - 8px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6rem;
+}
+
+.place-search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.place-search-row {
+  display: flex;
+  gap: 8px;
+}
+
+.place-search-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.place-search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.place-search-result {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.place-search-result:hover {
+  background: var(--color-surface-hover, rgba(128, 128, 128, 0.12));
+}
+
+.item-location {
+  margin: 8px 0;
+}
+
+.item-location-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.item-location {
+  margin: 8px 0;
+}
+
+.item-location-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.9rem;
+}

@@ -67,6 +67,13 @@ export async function saveJournal(journalPartial) {
   return saved
 }
 
+// Pushes only when the user has turned on weather sync (the engine checks).
+export async function saveWeatherDay(day, opts) {
+  const saved = await raw.saveWeatherDay(day, opts)
+  syncEngine.pushWeatherDay(saved).catch(() => {})
+  return saved
+}
+
 export async function bulkSaveInstances(instances) {
   await raw.bulkSaveInstances(instances)
   const byItemId = new Map()
