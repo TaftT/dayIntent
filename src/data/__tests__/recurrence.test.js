@@ -143,6 +143,24 @@ describe('topUpRecurringInstances', () => {
     expect((await repo.getInstancesForItem(item.id)).length).toBe(ids.length)
   })
 
+  it('collapses a duplicate occurrence from another device, keeping the one with progress or the oldest', async () => {
+    const item = await mkItem()
+    await ensureInstancesGenerated(item, '2026-01-01')
+    const [first, second] = (await repo.getInstancesForItem(item.id)).sort((a, b) => a.date.localeCompare(b.date))
+    // the same dates again under deterministic ids, as a second device's top-up would create them
+    await repo.saveInstance({ ...first, id: `${item.id}_${first.date}`, createdAt: '2099-01-01T00:00:00.000Z' })
+    await repo.saveInstance({ ...second, id: `${item.id}_${second.date}`, createdAt: '2099-01-01T00:00:00.000Z' })
+    await repo.saveInstance({ ...second, percentComplete: 50, status: 'worked_on' }) // progress made on the original
+    await repo.saveInstance({ ...first, id: `${item.id}_${first.date}`, percentComplete: 100, status: 'completed' }) // ...and on the copy
+
+    await topUpRecurringInstances([item], '2026-01-01')
+    const after = await repo.getInstancesForItem(item.id)
+    const onFirst = after.filter((i) => i.date === first.date)
+    const onSecond = after.filter((i) => i.date === second.date)
+    expect(onFirst.map((i) => i.id)).toEqual([`${item.id}_${first.date}`]) // the copy had progress
+    expect(onSecond.map((i) => i.id)).toEqual([second.id]) // the original had progress
+  })
+
   it('respects the end date and skips archived or non-recurring items', async () => {
     const ending = await mkItem({ recurrence: { ...daily, endDate: '2026-01-10' } })
     const plain = await repo.saveItem({ title: 'Once', durationMinutes: 30 })

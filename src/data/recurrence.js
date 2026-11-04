@@ -112,6 +112,43 @@ export async function ensureInstancesGenerated(item, today, horizonDays = GENERA
   }
 }
 
+const hasProgress = (i) => i.finalized || i.status !== 'pending' || i.percentComplete > 0 || i.startPercent > 0
+
+/**
+ * Collapses two occurrences of the same recurring item on the same date into
+ * one. They appear when a device tops a series up (deterministic id) before
+ * it has received the same date's instance another device generated (random
+ * id) — both then sync and stack on top of each other. The survivor is the one
+ * with progress recorded, else the oldest, so every device picks the same one
+ * and the deletes converge.
+ * @returns {Promise<import('./types.js').ScheduledInstance[]>} the instances that remain
+ */
+async function dedupeRecurringInstances(items, instances) {
+  const recurring = new Set(items.filter((i) => i.recurrence).map((i) => i.id))
+  const groups = new Map()
+  for (const inst of instances) {
+    if (!recurring.has(inst.itemId)) continue
+    const key = `${inst.itemId}|${inst.date}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(inst)
+  }
+  const removed = new Set()
+  for (const group of groups.values()) {
+    if (group.length < 2) continue
+    group.sort(
+      (a, b) =>
+        Number(hasProgress(b)) - Number(hasProgress(a)) ||
+        (a.createdAt ?? '').localeCompare(b.createdAt ?? '') ||
+        a.id.localeCompare(b.id),
+    )
+    for (const loser of group.slice(1)) {
+      await repo.deleteInstance(loser.id)
+      removed.add(loser.id)
+    }
+  }
+  return removed.size ? instances.filter((i) => !removed.has(i.id)) : instances
+}
+
 /**
  * Keeps every recurring series generating as time passes. Ensures occurrences
  * exist out to today + horizonDays, but only *beyond* what the series already
@@ -133,7 +170,7 @@ export async function ensureInstancesGenerated(item, today, horizonDays = GENERA
 export async function topUpRecurringInstances(items, today, horizonDays = GENERATION_HORIZON_DAYS) {
   const horizonEnd = toDateStr(addDays(fromDateStr(today), horizonDays))
   const byItem = new Map()
-  for (const inst of await repo.getAllInstances()) {
+  for (const inst of await dedupeRecurringInstances(items, await repo.getAllInstances())) {
     if (!byItem.has(inst.itemId)) byItem.set(inst.itemId, [])
     byItem.get(inst.itemId).push(inst)
   }
