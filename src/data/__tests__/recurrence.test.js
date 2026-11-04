@@ -161,6 +161,19 @@ describe('topUpRecurringInstances', () => {
     expect(onSecond.map((i) => i.id)).toEqual([second.id]) // the original had progress
   })
 
+  it('drops untouched occurrences left past a series’ end date, but keeps ones with progress', async () => {
+    const item = await mkItem()
+    await ensureInstancesGenerated(item, '2026-01-01')
+    const ended = await repo.saveItem({ ...item, recurrence: { ...daily, endDate: '2026-01-10' } })
+    const done = (await repo.getInstancesForItem(item.id)).find((i) => i.date === '2026-01-12')
+    await repo.saveInstance({ ...done, percentComplete: 100, status: 'completed' })
+
+    await topUpRecurringInstances([ended], '2026-01-01')
+    const dates = (await repo.getInstancesForItem(item.id)).map((i) => i.date).sort()
+    expect(dates.filter((d) => d > '2026-01-10')).toEqual(['2026-01-12'])
+    expect(dates).toContain('2026-01-10')
+  })
+
   it('respects the end date and skips archived or non-recurring items', async () => {
     const ending = await mkItem({ recurrence: { ...daily, endDate: '2026-01-10' } })
     const plain = await repo.saveItem({ title: 'Once', durationMinutes: 30 })

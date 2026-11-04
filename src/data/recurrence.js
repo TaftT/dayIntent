@@ -125,14 +125,24 @@ const hasProgress = (i) => i.finalized || i.status !== 'pending' || i.percentCom
  */
 async function dedupeRecurringInstances(items, instances) {
   const recurring = new Set(items.filter((i) => i.recurrence).map((i) => i.id))
+  const endDates = new Map(items.filter((i) => i.recurrence?.endDate).map((i) => [i.id, i.recurrence.endDate]))
+  const removed = new Set()
+  // A top-up can run against a stale copy of the series (before its end date
+  // synced in) and leave untouched occurrences past the end: drop those.
+  for (const inst of instances) {
+    const end = endDates.get(inst.itemId)
+    if (end && inst.date > end && !hasProgress(inst)) {
+      await repo.deleteInstance(inst.id)
+      removed.add(inst.id)
+    }
+  }
   const groups = new Map()
   for (const inst of instances) {
-    if (!recurring.has(inst.itemId)) continue
+    if (!recurring.has(inst.itemId) || removed.has(inst.id)) continue
     const key = `${inst.itemId}|${inst.date}`
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key).push(inst)
   }
-  const removed = new Set()
   for (const group of groups.values()) {
     if (group.length < 2) continue
     group.sort(
