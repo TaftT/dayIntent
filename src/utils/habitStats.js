@@ -137,5 +137,14 @@ export function computeHabitStats(habitItem, allItems, allInstances) {
     return { date, status: statusByDate.get(date) ?? null }
   })
 
-  return { totalOccurrences, completedCount, completionRate, currentStreak, longestStreak, history }
+  // Every day from the first tracked one through today (untracked days are
+  // null) for the all-time view.
+  const allHistory = []
+  if (dates.length > 0) {
+    for (let d = dates[0]; d <= today; d = addDaysStr(d, 1)) {
+      allHistory.push({ date: d, status: statusByDate.get(d) ?? null })
+    }
+  }
+
+  return { totalOccurrences, completedCount, completionRate, currentStreak, longestStreak, history, allHistory }
 }

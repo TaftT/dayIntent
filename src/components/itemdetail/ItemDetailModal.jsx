@@ -81,7 +81,14 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
     instance ? instance.percentComplete : (existingItem?.percentComplete ?? 0)
   )
   // Whether this occurrence's notes show in the journal (instances only).
-  const [inJournal, setInJournal] = useState(!instance?.journalExcluded)
+  const [inJournal, setInJournalState] = useState(!instance?.journalExcluded)
+  // Whether the toggle was touched: a series-wide save then applies the choice
+  // to every occurrence even if this one already matched it.
+  const [journalTouched, setJournalTouched] = useState(false)
+  const setInJournal = (v) => {
+    setInJournalState(v)
+    setJournalTouched(true)
+  }
   // Pinned: no dragging, and moving/deleting asks first (and moves cost more).
   const [locked, setLocked] = useState(Boolean(instance?.locked))
   // A confirmation waiting on the user: { title, message, confirmLabel, run }.
@@ -258,12 +265,15 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
         if (notes !== instance?.notes) {
           await setInstanceNotes(instanceId, notes)
         }
-        // Applied before any series split below, while the occurrences still
-        // belong to this item. "This & future" / "All events" carry the
-        // journal choice across the series like the other series-wide edits.
-        if (inJournal === Boolean(instance?.journalExcluded)) {
-          if (scope === 'this') await setInstanceJournalExcluded(instanceId, !inJournal)
-          else await setJournalExcludedForItem(itemId, !inJournal, scope === 'future' ? scheduledDate : null)
+        // "This" applies right away. "This & future" applies before the split
+        // below, while the occurrences still belong to this item. "All events"
+        // applies after the item save instead (see below), because that save
+        // can regenerate future occurrences and would wipe the setting.
+        const journalChanged = inJournal === Boolean(instance?.journalExcluded)
+        if (scope === 'this') {
+          if (journalChanged) await setInstanceJournalExcluded(instanceId, !inJournal)
+        } else if (scope === 'future' && (journalChanged || journalTouched)) {
+          await setJournalExcludedForItem(itemId, !inJournal, scheduledDate)
         }
         if (scopeToInstance && (effectiveDuration !== instance?.durationMinutes || isAllDay !== instance?.isAllDay)) {
           await setInstanceDuration(instanceId, effectiveDuration, isAllDay)
@@ -273,6 +283,9 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
         }
         if (scope === 'future') await splitSeriesFrom(itemId, scheduledDate, payload)
         else await updateItem(itemId, payload)
+        if (scope === 'all' && (inJournal === Boolean(instance?.journalExcluded) || journalTouched)) {
+          await setJournalExcludedForItem(itemId, !inJournal, null)
+        }
       } else {
         // Remember the pre-completion percent so "Mark incomplete" can restore it.
         const before = existingItem?.percentComplete ?? 0

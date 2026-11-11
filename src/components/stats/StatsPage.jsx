@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Button } from '../shared/Button.jsx'
+import { Modal } from '../shared/Modal.jsx'
 import { ConfirmModal } from '../shared/ConfirmModal.jsx'
 import { TopBar } from '../layout/TopBar.jsx'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { useCategoryById } from '../../hooks/useCategories.js'
 import { computeHabitStats, getHabitPredecessors, getVisibleHabits } from '../../utils/habitStats.js'
-import { addDaysStr, todayStr, formatShortDate } from '../../utils/dateUtils.js'
+import { addDaysStr, todayStr, formatShortDate, fromDateStr } from '../../utils/dateUtils.js'
 import { loadStatsRange, saveStatsRange } from '../../utils/statsRangeStorage.js'
 import { UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 import { StatsRangeControl } from './StatsRangeControl.jsx'
@@ -36,6 +37,51 @@ function HabitHistoryStrip({ history }) {
   )
 }
 
+// All-time tracking: one calendar grid per month, weekday-aligned, with every
+// day from the first tracked one through today.
+function HabitAllTime({ history }) {
+  const months = []
+  for (const day of history) {
+    const key = day.date.slice(0, 7)
+    let m = months[months.length - 1]
+    if (!m || m.key !== key) {
+      m = { key, days: [], offset: fromDateStr(day.date).getDay() }
+      months.push(m)
+    }
+    m.days.push(day)
+  }
+  const monthLabel = (key) =>
+    fromDateStr(`${key}-01`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+  if (months.length === 0) return <p className="habit-alltime-empty">Nothing tracked yet.</p>
+  return (
+    <div className="habit-alltime">
+      <div className="habit-alltime-legend">
+        <span><i style={{ background: STATUS_COLOR.completed }} /> Completed</span>
+        <span><i style={{ background: STATUS_COLOR.worked_on }} /> Worked on</span>
+        <span><i style={{ background: STATUS_COLOR.ghost }} /> Missed</span>
+      </div>
+      {[...months].reverse().map((m) => (
+        <div key={m.key} className="habit-alltime-month">
+          <div className="habit-alltime-month-label">{monthLabel(m.key)}</div>
+          <div className="habit-alltime-grid">
+            {Array.from({ length: m.offset }, (_, i) => <span key={`o${i}`} />)}
+            {m.days.map((day) => (
+              <div
+                key={day.date}
+                className="habit-alltime-day"
+                style={{ background: day.status ? STATUS_COLOR[day.status] : 'var(--color-bg-alt)' }}
+                title={`${formatShortDate(day.date)}${day.status ? `: ${day.status.replace('_', ' ')}` : ''}`}
+              >
+                {Number(day.date.slice(8))}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function HabitCard({ item }) {
   const category = useCategoryById(item.categoryId)
   const allInstances = useEntityStore((s) => s.allInstances)
@@ -46,10 +92,23 @@ function HabitCard({ item }) {
   // this page; 'delete' ends the series after today — past occurrences stay
   // on the calendar, only upcoming ones are removed.
   const [confirming, setConfirming] = useState(null)
+  const [showAllTime, setShowAllTime] = useState(false)
   const stats = computeHabitStats(item, items, allInstances)
 
   return (
-    <div className="habit-card">
+    <div
+      className="habit-card"
+      role="button"
+      tabIndex={0}
+      title="See all-time tracking"
+      onClick={() => setShowAllTime(true)}
+      onKeyDown={(e) => {
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault()
+          setShowAllTime(true)
+        }
+      }}
+    >
       <div className="habit-card-header">
         <span className="category-dot" style={{ background: category?.color ?? UNCATEGORIZED_COLOR }} />
         <span className="habit-card-title">{item.title}</span>
@@ -73,10 +132,17 @@ function HabitCard({ item }) {
         </div>
       </div>
       <HabitHistoryStrip history={stats.history} />
-      <div className="habit-card-actions">
+      <div className="habit-card-actions" onClick={(e) => e.stopPropagation()}>
         <Button variant="subtle" onClick={() => setConfirming('untrack')}>Stop tracking</Button>
         <Button variant="subtle" onClick={() => setConfirming('delete')}>Delete</Button>
       </div>
+      {showAllTime && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <Modal title={`${item.title} — all time`} onClose={() => setShowAllTime(false)}>
+            <HabitAllTime history={stats.allHistory} />
+          </Modal>
+        </div>
+      )}
       {confirming === 'untrack' && (
         <ConfirmModal
           title="Stop tracking this habit?"
