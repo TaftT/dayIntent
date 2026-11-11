@@ -69,18 +69,32 @@ export function computeCategoryTime(instances, items, categories, fromDate, toDa
   // is never counted twice (a 2h task fully containing a 1h task adds up to 2h
   // total, not 3h). Process shortest first; each task loses whatever part of
   // its span is already claimed by shorter tasks, scaled by how much of the
-  // task was actually done.
+  // task was actually done. Tasks with the exact same span (same start and
+  // length) are twins: they split that time evenly between them rather than
+  // one claiming it all, so identical tasks in different categories each get
+  // half (same category: it adds up to the same either way).
+  const twinCount = new Map()
+  const twinOverlap = new Map()
+  const twinKey = (c) => `${c.start}|${c.duration}`
+  for (const c of counted) twinCount.set(twinKey(c), (twinCount.get(twinKey(c)) ?? 0) + 1)
   const claimed = [] // sorted, non-overlapping [start, end] intervals
   counted.sort((a, b) => a.duration - b.duration || (a.start ?? 0) - (b.start ?? 0))
   for (const c of counted) {
     let effective = c.minutes
     if (c.start != null && c.duration > 0) {
       const end = c.start + c.duration
-      let overlap = 0
-      for (const [s, e] of claimed) {
-        overlap += Math.max(0, Math.min(e, end) - Math.max(s, c.start))
+      const k = twinKey(c)
+      let overlap = twinOverlap.get(k)
+      if (overlap === undefined) {
+        // Measured once, against shorter tasks only — twins don't count
+        // against each other here, they share instead.
+        overlap = 0
+        for (const [s, e] of claimed) {
+          overlap += Math.max(0, Math.min(e, end) - Math.max(s, c.start))
+        }
+        twinOverlap.set(k, overlap)
       }
-      effective = (c.minutes * (c.duration - overlap)) / c.duration
+      effective = (c.minutes * (c.duration - overlap)) / c.duration / twinCount.get(k)
       // Merge this span into the claimed set.
       const merged = []
       let ns = c.start
