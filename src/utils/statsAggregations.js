@@ -26,10 +26,13 @@ export function computeCategoryTime(instances, items, categories, fromDate, toDa
 
   const minutesByCategory = new Map()
   const today = todayStr()
+  const counted = []
 
   for (const inst of instances) {
     if (inst.date < from || inst.date > to) continue
     if (inst.durationMinutes == null) continue
+    // Untimed (all-day / no start time) tasks aren't counted at all.
+    if (inst.isAllDay || !inst.time) continue
 
     let pct
     if (inst.finalized) {
@@ -53,7 +56,48 @@ export function computeCategoryTime(instances, items, categories, fromDate, toDa
     const item = itemsById.get(inst.itemId)
     const category = item?.categoryId ? categoriesById.get(item.categoryId) : null
     const key = category?.id ?? null
-    minutesByCategory.set(key, (minutesByCategory.get(key) ?? 0) + minutes)
+
+    // Place on the timeline so overlaps can be resolved below.
+    const start =
+      differenceInCalendarDays(fromDateStr(inst.date), fromDateStr(from)) * 1440 +
+      timeStrToMinutes(inst.time)
+    counted.push({ key, minutes, start, duration: inst.durationMinutes })
+  }
+
+  // Overlap handling: when tasks overlap in time, the shorter task keeps the
+  // shared stretch and it's taken away from the longer one, so wall-clock time
+  // is never counted twice (a 2h task fully containing a 1h task adds up to 2h
+  // total, not 3h). Process shortest first; each task loses whatever part of
+  // its span is already claimed by shorter tasks, scaled by how much of the
+  // task was actually done.
+  const claimed = [] // sorted, non-overlapping [start, end] intervals
+  counted.sort((a, b) => a.duration - b.duration || (a.start ?? 0) - (b.start ?? 0))
+  for (const c of counted) {
+    let effective = c.minutes
+    if (c.start != null && c.duration > 0) {
+      const end = c.start + c.duration
+      let overlap = 0
+      for (const [s, e] of claimed) {
+        overlap += Math.max(0, Math.min(e, end) - Math.max(s, c.start))
+      }
+      effective = (c.minutes * (c.duration - overlap)) / c.duration
+      // Merge this span into the claimed set.
+      const merged = []
+      let ns = c.start
+      let ne = end
+      for (const [s, e] of claimed) {
+        if (e < ns || s > ne) merged.push([s, e])
+        else {
+          ns = Math.min(ns, s)
+          ne = Math.max(ne, e)
+        }
+      }
+      merged.push([ns, ne])
+      merged.sort((a, b) => a[0] - b[0])
+      claimed.length = 0
+      claimed.push(...merged)
+    }
+    minutesByCategory.set(c.key, (minutesByCategory.get(c.key) ?? 0) + effective)
   }
 
   const rows = Array.from(minutesByCategory.entries())
