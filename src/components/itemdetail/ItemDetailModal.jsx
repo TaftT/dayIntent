@@ -102,7 +102,6 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   // When this task was last sent to Google Calendar (see GoogleCalendarButton).
   const [googleSharedAt, setGoogleSharedAt] = useState(existingItem?.googleSharedAt ?? null)
   const [error, setError] = useState('')
-  const [saveMenuOpen, setSaveMenuOpen] = useState(false)
   // The ref blocks a second save in the same tick (before `saving` re-renders);
   // the state drives the disabled/spinner buttons.
   const [saving, setSaving] = useState(false)
@@ -425,48 +424,16 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
     navigate(`/day/${goToDate}`)
   }
 
-  // A recurring occurrence has two meanings of "save", so the header button
-  // turns into a menu offering both; everywhere else it's a plain button.
-  const saveButton = isRecurringInstance ? (
-    <div className="save-menu">
-      <Button
-        variant="primary"
-        loading={saving}
-        onClick={() => setSaveMenuOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={saveMenuOpen}
-      >
-        Save ▾
-      </Button>
-      {saveMenuOpen && (
-        <div className="save-menu-list" role="menu">
-          <button type="button" role="menuitem" disabled={saving} onClick={() => handleSave('this')}>
-            This event only
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={saving}
-            onClick={() => handleSave('future')}
-            title="Applies the changes to this event and every later one; earlier events keep how they were"
-          >
-            This & future events
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={saving}
-            onClick={() => handleSave('all')}
-            title="Applies the changes to every event in the series, including past ones"
-          >
-            All events
-          </button>
-        </div>
-      )}
-    </div>
-  ) : (
+  // The header button always saves just this event; the extra scopes
+  // ("This & future", "All events") live in the buttons at the bottom.
+  const saveButton = (
     <Button variant="primary" loading={saving} onClick={() => handleSave('this')}>
       Save
+      {isRecurringInstance && (
+        <small style={{ display: 'block', fontSize: '0.65em', fontWeight: 400, opacity: 0.85 }}>
+          this event
+        </small>
+      )}
     </Button>
   )
 
@@ -537,7 +504,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
             onChange={(d) => setDurationMinutes(d * MINUTES_PER_DAY)}
             info={isRecurringInstance ? (
               <InfoTip label="About changing the duration">
-                Duration/all-day changes only apply to this occurrence — use "This & future" or "All events" in the Save menu to change more than this one.
+                Duration/all-day changes only apply to this occurrence — use "This & future" or "All events" at the bottom of the form to change more than this one.
               </InfoTip>
             ) : null}
           />
@@ -548,7 +515,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
             startTime={date ? startTime : null}
             info={isRecurringInstance ? (
               <InfoTip label="About changing the duration">
-                Duration/all-day changes only apply to this occurrence — use "This & future" or "All events" in the Save menu to change more than this one.
+                Duration/all-day changes only apply to this occurrence — use "This & future" or "All events" at the bottom of the form to change more than this one.
               </InfoTip>
             ) : null}
           />
@@ -655,7 +622,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
                 This event
               </Button>
               <Button
-                variant="subtle"
+                variant="primary"
                 disabled={saving}
                 onClick={() => handleSave('future')}
                 title="Applies the changes to this event and every later one; earlier events keep how they were"
@@ -663,7 +630,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
                 This & future
               </Button>
               <Button
-                variant="subtle"
+                variant="primary"
                 disabled={saving}
                 onClick={() => handleSave('all')}
                 title="Applies the changes to every event in the series, including past ones"
