@@ -32,6 +32,27 @@ describe('computeCategoryTime overlaps', () => {
     expect(total([task('a', '09:00', 120), task('b', '10:30', 60)])).toBe(150)
   })
 
+  it('splits identical tasks evenly across their categories', () => {
+    const cats2 = [
+      { id: 'c', name: 'Work', color: '#111' },
+      { id: 'd', name: 'Play', color: '#222' },
+    ]
+    const items2 = [
+      { id: 'i', categoryId: 'c' },
+      { id: 'j', categoryId: 'd' },
+    ]
+    const r = computeCategoryTime(
+      [task('a', '09:00', 60), task('b', '09:00', 60, { itemId: 'j' })],
+      items2, cats2, '2026-10-01', '2026-10-01'
+    )
+    expect(r.rows.map((x) => x.minutes)).toEqual([30, 30])
+    expect(r.totalMinutes).toBe(60)
+  })
+
+  it('counts identical same-category tasks once', () => {
+    expect(total([task('a', '09:00', 60), task('b', '09:00', 60)])).toBe(60)
+  })
+
   it('ignores untimed and all-day tasks', () => {
     expect(
       total([task('a', '09:00', 60), task('b', null, 60), task('c', '00:00', 60, { isAllDay: true })])
