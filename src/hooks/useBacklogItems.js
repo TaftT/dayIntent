@@ -92,7 +92,11 @@ function classify(items, allInstances, today) {
       .sort((a, b) => b.date.localeCompare(a.date))[0]
     const completedDate = completedInstance?.date ?? null
     const sortDate = completedDate ?? (item.updatedAt ? toDateStr(new Date(item.updatedAt)) : null)
-    return { item, nextInstance, percent, tabs, completedDate, sortDate }
+    // For a task that fell back to the backlog: the last day it was on the
+    // calendar, so the row can link back to it.
+    const lastScheduledDate =
+      !item.recurrence && percent < 100 && !nextInstance ? (lastFinalized?.date ?? null) : null
+    return { item, nextInstance, percent, tabs, completedDate, sortDate, lastScheduledDate }
   })
 }
 
@@ -155,6 +159,7 @@ export function useBacklogItems(filters = {}) {
       nextInstance: c.nextInstance,
       percent: c.percent,
       completedDate: c.completedDate,
+      lastScheduledDate: c.lastScheduledDate,
       sortDate: c.sortDate,
       section: tab === 'scheduled' && c.nextInstance ? dateSection(c.nextInstance.date, today) : null,
     }))

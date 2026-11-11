@@ -60,12 +60,16 @@ export function BacklogListItem({ row, rank, draggable, canSchedule, selection }
   // Finished tasks show the day they were completed on the calendar. One
   // that was just checked off from the backlog has no known date, so it says
   // so instead of guessing — and has no day to link to.
-  const linkDate = done ? row.completedDate : nextInstance?.date
+  const linkDate = done ? row.completedDate : (nextInstance?.date ?? row.lastScheduledDate)
   const when = done
     ? row.completedDate
       ? `✓ Done ${isTodayStr(row.completedDate) ? 'today' : formatShortDate(row.completedDate)}`
       : null
-    : whenLabel(nextInstance)
+    : nextInstance
+      ? whenLabel(nextInstance)
+      : row.lastScheduledDate
+        ? `Was ${isTodayStr(row.lastScheduledDate) ? 'today' : formatShortDate(row.lastScheduledDate)}`
+        : null
   // A scheduled task opens with its occurrence (so the modal shows its day and
   // time and saving moves that occurrence); one that isn't on the calendar
   // opens as a plain backlog item.
@@ -138,7 +142,7 @@ export function BacklogListItem({ row, rank, draggable, canSchedule, selection }
             <button
               type="button"
               className="backlog-when"
-              title="Open this day"
+              title={nextInstance || done ? 'Open this day' : 'Open the day this was scheduled'}
               onClick={(e) => {
                 e.stopPropagation()
                 flashItem(item.id)

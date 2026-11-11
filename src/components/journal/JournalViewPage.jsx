@@ -137,8 +137,18 @@ export function JournalViewPage() {
                     ['Others', readTally(j).others],
                   ]
                     .filter(([, side]) => sideLogged(side))
-                    .map(([label, side]) => `${label} ${formatScore(sideScore(side))}`)
-                    .join(' · ')}
+                    .map(([label, side], i) => {
+                      const score = sideScore(side)
+                      return (
+                        <span key={label}>
+                          {i > 0 ? ' · ' : ''}
+                          {label}{' '}
+                          <span className={score > 0 ? 'mood-positive' : score < 0 ? 'mood-negative' : ''}>
+                            {formatScore(score)}
+                          </span>
+                        </span>
+                      )
+                    })}
                   {j.mood || j.spouseMood ? ` ${j.mood ?? ''}${j.spouseMood ?? ''}` : ''}
                 </span>
                 <KebabMenu
