@@ -2215,14 +2215,15 @@
 }
 
 .habit-history-strip {
-  display: flex;
-  gap: 3px;
-  flex-wrap: wrap;
+  /* One row of 30 equal squares that shrink to fit the card, so the strip
+     never wraps a few leftover days onto a second line. */
+  display: grid;
+  grid-template-columns: repeat(30, minmax(0, 1fr));
+  gap: 2px;
 }
 
 .habit-history-dot {
-  width: 10px;
-  height: 10px;
+  aspect-ratio: 1;
   border-radius: 2px;
 }
 
@@ -3838,4 +3839,22 @@
   justify-content: space-between;
   gap: 8px;
   font-size: 0.9rem;
+}
+
+/* Heading sizes from the rich text editor, in the editor and wherever the
+   saved notes/entries are shown. */
+.rsw-ce h1,
+.day-item-note-body h1,
+.journal-view-entry-body h1 {
+  font-size: 1.4em;
+  font-weight: 700;
+  margin: 0.4em 0 0.2em;
+}
+
+.rsw-ce h2,
+.day-item-note-body h2,
+.journal-view-entry-body h2 {
+  font-size: 1.15em;
+  font-weight: 700;
+  margin: 0.4em 0 0.2em;
 }

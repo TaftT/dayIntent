@@ -57,6 +57,8 @@ export function buildJournalPrintHtml(entries, range) {
   h2 { font-size: 10.5pt; margin: 0 0 3pt; padding-bottom: 2pt; border-bottom: 1px solid #ccc;
        break-after: avoid; display: flex; justify-content: space-between; gap: 8pt; }
   .mood { font-weight: normal; font-size: 8.5pt; color: #444; white-space: nowrap; }
+  .content h1, .note h1 { font-size: 12.5pt; margin: 6pt 0 2pt; }
+  .content h2, .note h2 { font-size: 11pt; margin: 5pt 0 2pt; padding: 0; border: 0; display: block; }
   .content p, .note p { margin: 0 0 4pt; }
   .content, .note { overflow-wrap: anywhere; }
   .note { margin-top: 5pt; padding-left: 6pt; border-left: 2px solid #999; }
