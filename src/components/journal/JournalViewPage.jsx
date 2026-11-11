@@ -9,6 +9,7 @@ import { useAppStore } from '../../store/useAppStore.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { isRichTextEmpty } from '../../utils/richText.js'
 import { formatScore, hasTally, readTally, sideLogged, sideScore } from '../../utils/moodTally.js'
+import { hasPrintableContent, printJournal } from '../../utils/journalPrint.js'
 import { formatDayHeading, fromDateStr, toDateStr, todayStr } from '../../utils/dateUtils.js'
 
 const isBlank = (html) => (html ?? '').replace(/<[^>]*>|&nbsp;/g, '').trim() === ''
@@ -65,6 +66,8 @@ export function JournalViewPage() {
       .sort((a, b) => a.date.localeCompare(b.date))
   }, [allJournals, notesByDate, range, showHidden])
 
+  const printable = useMemo(() => entries.filter(hasPrintableContent), [entries])
+
   // Land on the newest entry whenever the page opens or the range changes.
   useLayoutEffect(() => {
     const el = scrollRef.current
@@ -104,6 +107,17 @@ export function JournalViewPage() {
         <ToggleButton pressed={showHidden} onChange={setShowHidden}>
           Show hidden entries
         </ToggleButton>
+        {/* Prints what's listed below minus blank entries (e.g. today's empty
+            editor slot); hidden ones only when "Show hidden" is on. */}
+        <button
+          type="button"
+          className="stats-range-preset"
+          disabled={!printable.length}
+          onClick={() => printJournal(printable, range)}
+          title="Print or save as a PDF (letter size, two columns)"
+        >
+          Print
+        </button>
         <div className="stats-range-dates">
           <label>
             From
