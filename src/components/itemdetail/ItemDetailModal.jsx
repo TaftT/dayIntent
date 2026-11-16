@@ -307,6 +307,22 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
     }
   }
 
+  // Closing without saving still keeps notes typed for this one occurrence
+  // (everything else typed is discarded, as before). Notes live on the
+  // occurrence, so this never touches the rest of the series.
+  const handleClose = async () => {
+    if (savingRef.current) return
+    if (instanceId && !isCreate && notes !== (instance?.notes ?? '')) {
+      savingRef.current = true
+      try {
+        await setInstanceNotes(instanceId, notes)
+      } catch {
+        // Closing must always work; a failed notes save just isn't kept.
+      }
+    }
+    closeModal()
+  }
+
   // Deleting or unscheduling a locked occurrence asks first.
   const confirmIfLocked = (fn) => () =>
     instance?.locked
@@ -418,8 +434,8 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
           Unschedule
         </Button>
       )}
-      <Button variant="subtle" onClick={closeModal}>
-        Cancel
+      <Button variant="subtle" onClick={handleClose}>
+        {instanceId && !isCreate ? 'Close' : 'Cancel'}
       </Button>
     </>
   )
@@ -459,7 +475,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
     <>
     <Modal
       title={isCreate ? 'New Item' : 'Edit Item'}
-      onClose={closeModal}
+      onClose={handleClose}
       headerAction={
         <div className="modal-header-actions">
           {goToDate && (
