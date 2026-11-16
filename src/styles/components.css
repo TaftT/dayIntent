@@ -3858,3 +3858,195 @@
   font-weight: 700;
   margin: 0.4em 0 0.2em;
 }
+
+/* Week view (desktop and landscape phones) */
+
+.view-toggle {
+  display: inline-flex;
+  margin-left: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.view-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+
+.view-toggle-btn.active {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+.week-head,
+.week-allday,
+.week-body {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) repeat(7, minmax(0, 1fr));
+}
+
+.week-head {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.week-head-cell {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 2px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.week-head-cell:hover {
+  background: var(--color-bg-alt);
+}
+
+.week-head-dow {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.week-head-num {
+  font-weight: 600;
+}
+
+.week-head-today .week-head-num {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  border-radius: 999px;
+  padding: 0 7px;
+}
+
+.week-allday {
+  border-bottom: 1px solid var(--color-border);
+  max-height: 96px;
+  overflow-y: auto;
+}
+
+.week-allday-cell {
+  min-width: 0;
+  border-left: 1px solid var(--color-border);
+}
+
+.week-allday-cell .all-day-row {
+  padding: 3px;
+  gap: 3px;
+  border-bottom: none;
+}
+
+.week-allday-cell .all-day-chip {
+  padding: 1px 6px;
+  font-size: 0.7rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.week-scroll {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+}
+
+.week-hour-label {
+  box-sizing: border-box;
+  text-align: right;
+  padding-right: 6px;
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  transform: translateY(-7px);
+}
+
+.week-col {
+  position: relative;
+  border-left: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+.week-col-today {
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+.week-hour-cell {
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.week-now {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.week-block {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 3px;
+  border: 1px solid;
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.week-block-reminder {
+  border-color: var(--color-border) !important;
+  flex-wrap: nowrap;
+}
+
+.week-block-check {
+  display: inline-flex;
+  padding: 0;
+  background: transparent;
+  border: none;
+  flex-shrink: 0;
+}
+
+.week-block-title {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.week-block-time,
+.week-block-sync {
+  width: 100%;
+  opacity: 0.8;
+  font-size: 0.65rem;
+}
+
+.week-block-sync {
+  width: auto;
+}
+
+.week-block.status-completed .week-block-title {
+  text-decoration: line-through;
+}
+
+/* Landscape phone: reclaim vertical space */
+@media (orientation: landscape) and (max-height: 600px) {
+  .week-head-cell {
+    padding: 2px;
+  }
+}

@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { HomePage } from './home/HomePage.jsx'
 import { DayView } from './dayview/DayView.jsx'
+import { WeekView } from './weekview/WeekView.jsx'
 import { BacklogPage } from './backlog/BacklogPage.jsx'
 import { JournalViewPage } from './journal/JournalViewPage.jsx'
 import { StatsPage } from './stats/StatsPage.jsx'
@@ -12,6 +13,7 @@ export function AppRoutes({ location }) {
     <Routes location={location}>
       <Route path="/" element={<HomePage />} />
       <Route path="/day/:date" element={<DayView />} />
+      <Route path="/week/:date" element={<WeekView />} />
       <Route path="/backlog" element={<BacklogPage />} />
       <Route path="/journal" element={<JournalViewPage />} />
       <Route path="/stats" element={<StatsPage />} />

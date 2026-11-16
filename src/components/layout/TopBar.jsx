@@ -10,7 +10,7 @@ import { useJournal } from '../../hooks/useJournal.js'
 import { isRichTextEmpty } from '../../utils/richText.js'
 import { hasTally } from '../../utils/moodTally.js'
 
-export function TopBar({ date }) {
+export function TopBar({ date, mode = 'day' }) {
   const openModal = useAppStore((s) => s.openModal)
   const splitOpen = useAppStore((s) => s.splitOpen)
   const openSplit = useAppStore((s) => s.openSplit)
@@ -42,9 +42,9 @@ export function TopBar({ date }) {
 
   return (
     <header className="top-bar">
-      <div className="top-bar-left">{date && <DayNavControls date={date} />}</div>
+      <div className="top-bar-left">{date && <DayNavControls date={date} mode={mode} />}</div>
       <div className="top-bar-right">
-        {date && (
+        {date && mode === 'day' && (
           <button
             className={hasJournalEntry ? 'icon-button icon-button-journal-has-entry' : 'icon-button'}
             onClick={toggleJournal}
@@ -56,7 +56,7 @@ export function TopBar({ date }) {
         {wide && !isSecondaryPane && (
           <button
             className={splitOpen ? 'icon-button icon-button-on' : 'icon-button'}
-            onClick={() => (splitOpen ? closeSplit() : openSplit(pathname))}
+            onClick={() => (splitOpen ? closeSplit() : openSplit(pathname.replace(/^\/week\//, '/day/')))}
             aria-pressed={splitOpen}
             aria-label={splitOpen ? 'Close split view' : 'Open split view'}
             title={splitOpen ? 'Close split view' : 'Open a second page side by side'}
