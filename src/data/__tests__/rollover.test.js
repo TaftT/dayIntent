@@ -10,6 +10,21 @@ beforeEach(() => {
 })
 
 describe('runRollover', () => {
+  it('does not bump updatedAt, so a stale device cannot out-rank a newer synced completion', async () => {
+    const item = await repo.saveItem({ title: 'Task' })
+    const inst = await repo.saveInstance({ itemId: item.id, date: '2026-08-17', percentComplete: 0 })
+    const before = (await repo.getInstance(inst.id)).updatedAt
+    const itemBefore = (await repo.getItem(item.id)).updatedAt
+
+    await new Promise((r) => setTimeout(r, 5))
+    await runRollover('2026-08-19')
+
+    const after = await repo.getInstance(inst.id)
+    expect(after.finalized).toBe(true)
+    expect(after.updatedAt).toBe(before)
+    expect((await repo.getItem(item.id)).updatedAt).toBe(itemBefore)
+  })
+
   it('finalizes a past day as completed when percentComplete reached 100', async () => {
     const item = await repo.saveItem({ title: 'Task' })
     const inst = await repo.saveInstance({
