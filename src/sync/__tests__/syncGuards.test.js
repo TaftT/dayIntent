@@ -29,8 +29,12 @@ vi.mock('firebase/database', () => {
     ref: (_db, path = '') => ({ path }),
     get: async (r) => {
       if (fake.gate) await fake.gate
-      return snap(fake.read(r.path), r.path.split('/').pop())
+      let v = fake.read(r.path)
+      if (r.limit && v) v = Object.fromEntries(Object.entries(v).slice(0, r.limit))
+      return snap(v, r.path.split('/').pop())
     },
+    query: (r, c) => ({ ...r, ...c }),
+    limitToFirst: (n) => ({ limit: n }),
     set: async (r, v) => fake.write(r.path, v),
     remove: async (r) => fake.write(r.path, null),
     update: async (r, updates) => Object.entries(updates).forEach(([p, v]) => fake.write(`${r.path}/${p}`, v)),
@@ -48,7 +52,7 @@ vi.mock('firebase/database', () => {
 import { _resetDbForTests } from '../../data/db.js'
 import * as localRepo from '../../data/indexedDbRepository.js'
 import { deriveMasterKey, generateSalt, generateDataKey, wrapKey, encryptJson, decryptJson, unwrapKey } from '../../firebase/crypto.js'
-import { start, stop, pushInstance } from '../syncEngine.js'
+import { start, stop, pushInstance, WrongKeyError } from '../syncEngine.js'
 
 const UID = 'u1'
 let masterKey
@@ -124,5 +128,38 @@ describe('sync push guards', () => {
     await started
     // Reconcile pulled the cloud's completed copy down onto this device.
     expect((await localRepo.getInstance(stale.id)).percentComplete).toBe(100)
+  })
+})
+
+describe('key verifier', () => {
+  const verifier = () => fake.read(`users/${UID}/meta/verifier`)
+
+  it('refuses a wrong key before writing anything, and leaves sync disarmed', async () => {
+    const { stale } = await seed()
+    const wrong = await deriveMasterKey('not-the-password', generateSalt())
+    const before = JSON.stringify(fake.tree)
+
+    await expect(start(UID, wrong)).rejects.toBeInstanceOf(WrongKeyError)
+    expect(JSON.stringify(fake.tree)).toBe(before) // nothing written, no verifier planted
+
+    // A later local save must not reach the cloud under the wrong key.
+    await pushInstance({ ...stale, percentComplete: 5, updatedAt: '2099-01-01T00:00:00.000Z' }, true)
+    expect(JSON.stringify(fake.tree)).toBe(before)
+  })
+
+  it('creates the verifier for an existing account on its first correct unlock', async () => {
+    await seed()
+    expect(verifier()).toBeNull()
+    await start(UID, masterKey)
+    expect(verifier()).not.toBeNull()
+  })
+
+  it('after the verifier exists, rejects a wrong key even on an otherwise empty cloud read', async () => {
+    await start(UID, masterKey) // fresh account: defines the verifier
+    expect(verifier()).not.toBeNull()
+    stop()
+    const wrong = await deriveMasterKey('other', generateSalt())
+    await expect(start(UID, wrong)).rejects.toBeInstanceOf(WrongKeyError)
+    await expect(start(UID, masterKey)).resolves.toBeUndefined()
   })
 })

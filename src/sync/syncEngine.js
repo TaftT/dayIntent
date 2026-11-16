@@ -26,7 +26,7 @@
 // deleted), so category deletions already propagated directly, no tombstone
 // needed there.
 
-import { ref, set, remove, update, get, runTransaction, onChildAdded, onChildChanged, onChildRemoved } from 'firebase/database'
+import { ref, set, remove, update, get, runTransaction, query, limitToFirst, onChildAdded, onChildChanged, onChildRemoved } from 'firebase/database'
 import { rtdb, firebaseEnabled } from '../firebase/config.js'
 import { generateSalt, generateDataKey, wrapKey, unwrapKey, encryptJson, decryptJson } from '../firebase/crypto.js'
 import * as localRepo from '../data/indexedDbRepository.js'
@@ -81,6 +81,55 @@ const weatherPath = (uid) => `users/${uid}/weatherDays`
 const saltPath = (uid) => `users/${uid}/meta/salt`
 const deletedItemsPath = (uid) => `users/${uid}/deletedItems`
 const deletedInstancesPath = (uid) => `users/${uid}/deletedInstances`
+const verifierPath = (uid) => `users/${uid}/meta/verifier`
+
+export class WrongKeyError extends Error {
+  constructor() {
+    super('Could not decrypt your synced data — the password is likely incorrect.')
+    this.name = 'WrongKeyError'
+  }
+}
+
+const VERIFIER_PLAINTEXT = { check: 'dayintent-key-check' }
+
+// Proves `masterKey` is the account's real key BEFORE anything is read into
+// the app or written to the cloud. Writing under a wrong key (typo'd unlock
+// password, or a password reset that changed the derived key) would scramble
+// the cloud with records nobody can open. The proof is a small encrypted
+// "verifier" record under meta/. Accounts from before it existed have none:
+// for them, try to open one existing record first, and only then create it.
+// A genuinely empty cloud (fresh account) just defines the verifier.
+async function verifyMasterKey(uid, masterKey) {
+  const snap = await get(ref(rtdb, verifierPath(uid)))
+  if (snap.exists()) {
+    try {
+      const opened = await openEnvelope(snap.val(), masterKey)
+      if (opened?.check === VERIFIER_PLAINTEXT.check) return
+    } catch {
+      // fall through
+    }
+    throw new WrongKeyError()
+  }
+
+  for (const path of [categoriesPath(uid), itemsPath(uid), instancesPath(uid), groupsPath(uid), journalsPath(uid)]) {
+    const first = await get(query(ref(rtdb, path), limitToFirst(1)))
+    if (!first.exists()) continue
+    let record = null
+    first.forEach((child) => {
+      record = child.val()
+    })
+    try {
+      await openEnvelope(record, masterKey)
+    } catch {
+      throw new WrongKeyError()
+    }
+    break
+  }
+
+  // Create-if-absent, so two devices racing to set it can't overwrite each other.
+  const envelope = await buildEnvelope(VERIFIER_PLAINTEXT, masterKey)
+  await runTransaction(ref(rtdb, verifierPath(uid)), (current) => current ?? envelope, { applyLocally: false })
+}
 
 export async function getOrCreateSalt(uid) {
   const snap = await get(ref(rtdb, saltPath(uid)))
@@ -771,9 +820,18 @@ export async function start(uid, masterKey, { force = false } = {}) {
   const localOwner = getLocalDataOwnerUid()
   const pullOnly = !force && Boolean(localOwner) && localOwner !== uid
   stop()
+  // Before any sync state exists (so nothing can be pushed): confirm the key.
+  await verifyMasterKey(uid, masterKey)
   const session = { uid, masterKey, pullOnly, ready: false, dirty: false }
   state = session
-  const knownIds = await reconcileAll(uid, masterKey, { pullOnly })
+  let knownIds
+  try {
+    knownIds = await reconcileAll(uid, masterKey, { pullOnly })
+  } catch (err) {
+    // A failed first reconcile must not leave sync armed with a key that may be wrong.
+    if (state === session) stop()
+    throw err
+  }
   if (state !== session) return // stopped or restarted while reconciling
   if (!pullOnly) setLocalDataOwnerUid(uid)
   attachListeners(uid, knownIds)
