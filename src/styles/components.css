@@ -4050,3 +4050,9 @@
     padding: 2px;
   }
 }
+
+.instance-info-icon {
+  margin-left: 4px;
+  font-size: 0.7rem;
+  opacity: 0.9;
+}

@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/useAuthStore.js'
 import { getDisplayStatus } from '../../data/rollover.js'
 import { formatTimeLabel, timeStrToMinutes } from '../../utils/dateUtils.js'
 import { StatusCircle } from './StatusCircle.jsx'
+import { InstanceInfoIcons } from './InstanceInfoIcons.jsx'
 import { minutesToPx, MIN_BLOCK_HEIGHT_PX, DAY_HEIGHT, overlapRightInset, overlapLeftOffset } from './gridConstants.js'
 import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 
@@ -117,6 +118,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
           </button>
           <span className="instance-line-title">{item.title}</span>
           {instance.locked && <span className="instance-pin-badge" title="Locked">🔒</span>}
+          <InstanceInfoIcons item={item} instance={instance} category={category} />
           {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
           {signedIn && item.syncEnabled && (
             <span className="instance-sync-badge" title="Synced to cloud">☁</span>
@@ -181,6 +183,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
       <div className="instance-block-title">
         {item.title}
         {instance.locked && <span className="instance-pin-badge" title="Locked">🔒</span>}
+        <InstanceInfoIcons item={item} instance={instance} category={category} />
         {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
         {signedIn && item.syncEnabled && (
           <span className="instance-sync-badge" title="Synced to cloud">☁</span>
