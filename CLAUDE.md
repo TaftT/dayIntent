@@ -49,3 +49,4 @@ src/data/index.js            re-exports syncedRepository.js (the public API)
 ## Known gotchas (from prior sessions)
 
 - Sign-out purges synced items only and keeps local-only items; locked sync (before password unlock) hides synced items rather than deleting them; sync-pull must preserve `updatedAt` rather than overwriting it. Get this wrong and you risk data loss on sign-out/re-sign-in — check `src/store/__tests__/purgeSyncedOnSignOut.test.js` before changing `useAuthStore.js`'s sign-out path.
+- A stale/newly signed-in device must never overwrite newer cloud data. `syncEngine.js` holds all pushes until the first reconcile finishes (`state.ready`; skipped pushes trigger one catch-up reconcile) and every record push is compare-and-set (`guardedSet` refuses to replace a cloud record with a newer `updatedAt`). Bookkeeping writes (`src/data/rollover.js`) stay local and keep `updatedAt`. Tests: `src/sync/__tests__/syncGuards.test.js`.

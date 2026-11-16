@@ -26,7 +26,7 @@
 // deleted), so category deletions already propagated directly, no tombstone
 // needed there.
 
-import { ref, set, remove, update, get, onChildAdded, onChildChanged, onChildRemoved } from 'firebase/database'
+import { ref, set, remove, update, get, runTransaction, onChildAdded, onChildChanged, onChildRemoved } from 'firebase/database'
 import { rtdb, firebaseEnabled } from '../firebase/config.js'
 import { generateSalt, generateDataKey, wrapKey, unwrapKey, encryptJson, decryptJson } from '../firebase/crypto.js'
 import * as localRepo from '../data/indexedDbRepository.js'
@@ -43,8 +43,33 @@ import { hasExtraHours, unionHours } from '../weather/historyDays.js'
 let state = null
 let detachFns = []
 
+// Two guards keep a stale device from clobbering newer cloud data:
+//
+// 1. No pushes until the first reconcile has finished (`state.ready`). Before
+//    that, this device hasn't seen what the cloud holds, so any local write —
+//    even bookkeeping like rollover or recurring top-up on an old local copy —
+//    must not go up. Skipped pushes flip `state.dirty`; start() then runs one
+//    more reconcile, which pushes whatever is genuinely newer than the cloud.
+// 2. Every record push is compare-and-set (guardedSet): it never replaces a
+//    cloud record whose updatedAt is newer than the one being pushed.
 function canPush() {
-  return state !== null && !state.pullOnly && firebaseEnabled
+  if (state === null || state.pullOnly || !firebaseEnabled) return false
+  if (!state.ready) {
+    state.dirty = true
+    return false
+  }
+  return true
+}
+
+// Writes `payload` to `path` unless the cloud already holds a strictly newer
+// copy (plaintext updatedAt). The listener then delivers the newer cloud copy
+// through the normal merge path, so the device converges on it instead.
+async function guardedSet(path, payload) {
+  await runTransaction(
+    ref(rtdb, path),
+    (current) => (current && current.updatedAt && current.updatedAt > payload.updatedAt ? undefined : payload),
+    { applyLocally: false },
+  )
 }
 
 const itemsPath = (uid) => `users/${uid}/items`
@@ -110,7 +135,7 @@ export async function pushItem(item) {
   if (!canPush()) return
   if (!item.syncEnabled) return removeItem(item.id)
   const envelope = await buildEnvelope(item, state.masterKey)
-  await set(ref(rtdb, `${itemsPath(state.uid)}/${item.id}`), { updatedAt: resolveUpdatedAt(item), ...envelope })
+  await guardedSet(`${itemsPath(state.uid)}/${item.id}`, { updatedAt: resolveUpdatedAt(item), ...envelope })
 }
 
 export async function removeItem(itemId) {
@@ -130,7 +155,7 @@ export async function pushInstance(instance, parentSyncEnabled) {
   if (!canPush()) return
   if (!parentSyncEnabled) return removeInstance(instance.id)
   const envelope = await buildEnvelope(instance, state.masterKey)
-  await set(ref(rtdb, `${instancesPath(state.uid)}/${instance.id}`), {
+  await guardedSet(`${instancesPath(state.uid)}/${instance.id}`, {
     itemId: instance.itemId,
     updatedAt: resolveUpdatedAt(instance),
     ...envelope,
@@ -185,7 +210,7 @@ export async function pushCategory(category) {
   if (!canPush()) return
   if (category.syncEnabled === false) return // device-local category
   const envelope = await buildEnvelope(category, state.masterKey)
-  await set(ref(rtdb, `${categoriesPath(state.uid)}/${category.id}`), { updatedAt: resolveUpdatedAt(category), ...envelope })
+  await guardedSet(`${categoriesPath(state.uid)}/${category.id}`, { updatedAt: resolveUpdatedAt(category), ...envelope })
 }
 
 export async function removeCategory(categoryId) {
@@ -196,7 +221,7 @@ export async function removeCategory(categoryId) {
 export async function pushGroup(group) {
   if (!canPush()) return
   const envelope = await buildEnvelope(group, state.masterKey)
-  await set(ref(rtdb, `${groupsPath(state.uid)}/${group.id}`), { updatedAt: resolveUpdatedAt(group), ...envelope })
+  await guardedSet(`${groupsPath(state.uid)}/${group.id}`, { updatedAt: resolveUpdatedAt(group), ...envelope })
 }
 
 export async function removeGroup(groupId) {
@@ -209,7 +234,7 @@ export async function removeGroup(groupId) {
 export async function pushJournal(journal) {
   if (!canPush()) return
   const envelope = await buildEnvelope(journal, state.masterKey)
-  await set(ref(rtdb, `${journalsPath(state.uid)}/${journal.date}`), { updatedAt: resolveUpdatedAt(journal), ...envelope })
+  await guardedSet(`${journalsPath(state.uid)}/${journal.date}`, { updatedAt: resolveUpdatedAt(journal), ...envelope })
 }
 
 // ---- Pull (cloud -> local) --------------------------------------------------
@@ -746,11 +771,20 @@ export async function start(uid, masterKey, { force = false } = {}) {
   const localOwner = getLocalDataOwnerUid()
   const pullOnly = !force && Boolean(localOwner) && localOwner !== uid
   stop()
-  state = { uid, masterKey, pullOnly }
+  const session = { uid, masterKey, pullOnly, ready: false, dirty: false }
+  state = session
   const knownIds = await reconcileAll(uid, masterKey, { pullOnly })
+  if (state !== session) return // stopped or restarted while reconciling
   if (!pullOnly) setLocalDataOwnerUid(uid)
   attachListeners(uid, knownIds)
+  session.ready = true
   if (pullOnly) throw new OwnerMismatchError()
+  // Local writes made while the first reconcile was running were held back
+  // (see canPush); one more pass pushes whatever is genuinely newer.
+  if (session.dirty) {
+    session.dirty = false
+    await reconcileAll(uid, masterKey, { pullOnly }).catch(() => {}) // a later resync will retry
+  }
 }
 
 export function stop() {
