@@ -1,8 +1,10 @@
 import { isRichTextEmpty } from '../../utils/richText.js'
+import { useEntityStore } from '../../store/useEntityStore.js'
 
 // Small at-a-glance markers on a day-view item: where it is, whether it has
-// notes, and which category it's in. Each shows only when it applies.
-export function InstanceInfoIcons({ item, instance, category }) {
+// notes, and which backlog group it belongs to. Each shows only when it applies.
+export function InstanceInfoIcons({ item, instance }) {
+  const group = useEntityStore((s) => (item?.groupId ? s.groups.find((g) => g.id === item.groupId) : null))
   const location = item?.location
   const hasNotes = !isRichTextEmpty(instance?.notes)
   return (
@@ -17,9 +19,9 @@ export function InstanceInfoIcons({ item, instance, category }) {
           📝
         </span>
       )}
-      {category && (
-        <span className="instance-info-icon" title={`Category: ${category.name}`} aria-label={`Category: ${category.name}`}>
-          🏷️
+      {group && (
+        <span className="instance-info-icon" title={`Group: ${group.name}`} aria-label={`Group: ${group.name}`}>
+          🗂️
         </span>
       )}
     </>
