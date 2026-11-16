@@ -53,7 +53,6 @@ export function DayView() {
   const moveInstanceTime = useEntityStore((s) => s.moveInstanceTime)
   const recordMove = useEntityStore((s) => s.recordMove)
   const undoLastMove = useEntityStore((s) => s.undoLastMove)
-  const addToast = useAppStore((s) => s.addToast)
   const journalOpen = useAppStore((s) => s.journalOpen)
   const openModal = useAppStore((s) => s.openModal)
   const setCurrentDate = useAppStore((s) => s.setCurrentDate)
@@ -166,7 +165,6 @@ export function DayView() {
     }
     if (before.length > 0) {
       recordMove(before)
-      addToast({ kind: 'undo', message: before.length > 1 ? `Moved ${before.length} items` : 'Moved item' })
     }
   }
 

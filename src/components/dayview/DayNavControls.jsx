@@ -2,6 +2,7 @@ import { usePaneNavigate } from '../../hooks/usePane.jsx'
 import { useCanShowWeek } from '../../hooks/useIsWide.js'
 import { addDaysStr, todayStr, formatDayHeading, formatWeekHeading, isTodayStr, weekStartStr } from '../../utils/dateUtils.js'
 import { useAppStore } from '../../store/useAppStore.js'
+import { useEntityStore } from '../../store/useEntityStore.js'
 
 // `mode` is 'day' (default) or 'week': the same controls drive both views,
 // stepping by a day or a week and linking between them.
@@ -10,6 +11,8 @@ export function DayNavControls({ date, mode = 'day' }) {
   const openModal = useAppStore((s) => s.openModal)
   const splitOpen = useAppStore((s) => s.splitOpen)
   const canShowWeek = useCanShowWeek()
+  const canUndoMove = useEntityStore((s) => s.moveHistory.length > 0)
+  const undoLastMove = useEntityStore((s) => s.undoLastMove)
   const isWeek = mode === 'week'
   const step = isWeek ? 7 : 1
   const unit = isWeek ? 'week' : 'day'
@@ -36,6 +39,17 @@ export function DayNavControls({ date, mode = 'day' }) {
       >
         {isWeek ? formatWeekHeading(date) : formatDayHeading(date)}
       </button>
+      {!isWeek && canUndoMove && (
+        <button
+          type="button"
+          className="icon-button undo-move-button"
+          onClick={undoLastMove}
+          aria-label="Undo last move"
+          title="Undo last move (Ctrl+Z)"
+        >
+          ↶
+        </button>
+      )}
       {showToggle && (
         <div className="view-toggle" role="group" aria-label="Calendar view">
           <button

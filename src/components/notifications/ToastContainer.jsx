@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 
@@ -7,18 +6,10 @@ import { useEntityStore } from '../../store/useEntityStore.js'
 function Toast({ toast }) {
   const removeToast = useAppStore((s) => s.removeToast)
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
-  const undoLastMove = useEntityStore((s) => s.undoLastMove)
-
-  // Confirmation toasts (unlike reminders) clear themselves.
-  useEffect(() => {
-    if (toast.kind !== 'undo') return undefined
-    const timer = setTimeout(() => removeToast(toast.id), 8000)
-    return () => clearTimeout(timer)
-  }, [toast.id, toast.kind, removeToast])
 
   return (
     <div className={`toast toast-${toast.kind}`}>
-      <span className="toast-icon">{toast.kind === 'finish' ? '⏱' : toast.kind === 'start' ? '▶' : toast.kind === 'undo' ? '↔' : '⏳'}</span>
+      <span className="toast-icon">{toast.kind === 'finish' ? '⏱' : toast.kind === 'start' ? '▶' : '⏳'}</span>
       <span className="toast-message">{toast.message}</span>
       {toast.instanceId && toast.kind === 'finish' && (
         <button
@@ -30,18 +21,6 @@ function Toast({ toast }) {
           }}
         >
           Mark complete
-        </button>
-      )}
-      {toast.kind === 'undo' && (
-        <button
-          type="button"
-          className="btn btn-subtle toast-action"
-          onClick={() => {
-            undoLastMove()
-            removeToast(toast.id)
-          }}
-        >
-          Undo
         </button>
       )}
       <button type="button" className="icon-button toast-dismiss" onClick={() => removeToast(toast.id)} aria-label="Dismiss">
