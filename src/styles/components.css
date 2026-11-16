@@ -4106,3 +4106,11 @@
     filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.7));
   }
 }
+
+.recovery-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  word-break: break-all;
+  user-select: all;
+}

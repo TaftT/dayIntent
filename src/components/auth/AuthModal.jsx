@@ -3,6 +3,7 @@ import { Modal } from '../shared/Modal.jsx'
 import { Button } from '../shared/Button.jsx'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
+import { RecoverWithKey } from './RecoverWithKey.jsx'
 
 function friendlyError(err) {
   const code = err?.code ?? ''
@@ -12,6 +13,9 @@ function friendlyError(err) {
   }
   if (code.includes('weak-password')) return 'Password is too weak (use at least 8 characters).'
   if (code.includes('invalid-email')) return 'That email address looks invalid.'
+  if (err?.name === 'WrongKeyError') {
+    return 'You are signed in, but this password does not open your encrypted data. If you reset your password, choose “Use recovery key” below.'
+  }
   if (code.includes('too-many-requests')) return 'Too many attempts — try again later.'
   return err?.message ?? 'Something went wrong.'
 }
@@ -29,6 +33,7 @@ export function AuthModal() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
+  const [needsRecovery, setNeedsRecovery] = useState(false)
 
   const handleSubmit = async () => {
     setError('')
@@ -74,12 +79,13 @@ export function AuthModal() {
       closeModal()
     } catch (err) {
       setError(friendlyError(err))
+      if (err?.name === 'WrongKeyError') setNeedsRecovery(true)
     } finally {
       setBusy(false)
     }
   }
 
-  const footer = (
+  const footer = mode === 'recover' ? null : (
     <>
       <Button variant="subtle" onClick={closeModal}>
         Cancel
@@ -98,10 +104,13 @@ export function AuthModal() {
     </>
   )
 
-  const title = mode === 'signUp' ? 'Create account' : mode === 'forgot' ? 'Reset password' : 'Sign in'
+  const title = mode === 'recover' ? 'Recover your data' : mode === 'signUp' ? 'Create account' : mode === 'forgot' ? 'Reset password' : 'Sign in'
 
   return (
     <Modal title={title} onClose={closeModal} footer={footer}>
+      {mode === 'recover' ? (
+        <RecoverWithKey initialPassword={password} onDone={closeModal} onCancel={() => setMode('signIn')} />
+      ) : (
       <div className="auth-form">
         <p className="form-hint">
           Cloud sync is optional — signing in only lets items you mark "Sync to cloud" follow you across
@@ -133,6 +142,11 @@ export function AuthModal() {
           />
         )}
         {error && <div className="form-error">{error}</div>}
+        {needsRecovery && mode === 'signIn' && (
+          <button type="button" className="link-button" onClick={() => setMode('recover')}>
+            Use recovery key
+          </button>
+        )}
         {info && <div className="form-hint">{info}</div>}
         <div className="auth-mode-switch">
           {mode === 'signIn' && (
@@ -157,6 +171,7 @@ export function AuthModal() {
           )}
         </div>
       </div>
+      )}
     </Modal>
   )
 }

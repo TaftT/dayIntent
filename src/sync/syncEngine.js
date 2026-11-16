@@ -99,7 +99,7 @@ const VERIFIER_PLAINTEXT = { check: 'dayintent-key-check' }
 // "verifier" record under meta/. Accounts from before it existed have none:
 // for them, try to open one existing record first, and only then create it.
 // A genuinely empty cloud (fresh account) just defines the verifier.
-async function verifyMasterKey(uid, masterKey) {
+export async function verifyMasterKey(uid, masterKey) {
   const snap = await get(ref(rtdb, verifierPath(uid)))
   if (snap.exists()) {
     try {

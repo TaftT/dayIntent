@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import * as fbAuth from '../firebase/auth.js'
-import { deriveMasterKey } from '../firebase/crypto.js'
+import * as keyRecovery from '../sync/keyRecovery.js'
 import { saveMasterKey, loadMasterKey, clearMasterKeys } from '../firebase/keyStore.js'
 import * as syncEngine from '../sync/syncEngine.js'
 import { firebaseEnabled } from '../firebase/config.js'
@@ -114,15 +114,13 @@ export const useAuthStore = create((set, get) => ({
 
   signUp: async (email, password) => {
     const user = await fbAuth.signUp(email, password)
-    const salt = await syncEngine.getOrCreateSalt(user.uid)
-    const masterKey = await deriveMasterKey(password, salt)
+    const masterKey = await keyRecovery.resolveMasterKey(user.uid, password)
     await get()._completeSignIn(user.uid, user.email, masterKey)
   },
 
   signIn: async (email, password) => {
     const user = await fbAuth.signIn(email, password)
-    const salt = await syncEngine.getOrCreateSalt(user.uid)
-    const masterKey = await deriveMasterKey(password, salt)
+    const masterKey = await keyRecovery.resolveMasterKey(user.uid, password)
     await get()._completeSignIn(user.uid, user.email, masterKey)
   },
 
@@ -141,9 +139,25 @@ export const useAuthStore = create((set, get) => ({
   unlock: async (password) => {
     const { user } = get()
     if (!user) return
-    const salt = await syncEngine.getOrCreateSalt(user.uid)
-    const masterKey = await deriveMasterKey(password, salt)
+    const masterKey = await keyRecovery.resolveMasterKey(user.uid, password)
     await get()._completeSignIn(user.uid, user.email, masterKey)
+  },
+
+  // Forgotten password: the recovery key opens the original encryption key and
+  // binds it to `newPassword` (the account's current password), then sync starts
+  // as for a normal unlock. See sync/keyRecovery.js.
+  recoverWithKey: async (recoveryKey, newPassword) => {
+    const { user } = get()
+    if (!user) throw new Error('Sign in first.')
+    const masterKey = await keyRecovery.redeemRecoveryKey(user.uid, recoveryKey, newPassword)
+    await get()._completeSignIn(user.uid, user.email, masterKey)
+  },
+
+  // Creates a recovery key (needs the current password). Returns it for display.
+  createRecoveryKey: async (password) => {
+    const { user } = get()
+    if (!user) throw new Error('Sign in first.')
+    return keyRecovery.createRecoveryKey(user.uid, password)
   },
 
   // Explicit, informed override after an ownerMismatch: adopt this device for

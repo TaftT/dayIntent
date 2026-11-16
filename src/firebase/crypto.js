@@ -53,6 +53,73 @@ export async function deriveMasterKey(password, saltB64) {
   )
 }
 
+/** The raw 32 bytes behind deriveMasterKey — only used to create/redeem a recovery key. */
+export async function deriveMasterBits(password, saltB64) {
+  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, [
+    'deriveBits',
+  ])
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: base64ToBytes(saltB64), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    256
+  )
+  return new Uint8Array(bits)
+}
+
+/** Turns raw master-key bytes back into the usual non-extractable master key. */
+export function importMasterKey(raw) {
+  return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt'])
+}
+
+// ---- Recovery key -----------------------------------------------------------
+// A random 160-bit code (base32, shown as XXXX-XXXX-…). It is never stored; it
+// only encrypts a copy of the master key kept in the cloud, so someone who
+// forgets their password can still open their data. 160 random bits need no
+// slow key stretching, a plain SHA-256 is enough.
+const RECOVERY_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+const RECOVERY_CHARS = 32
+
+export function generateRecoveryKey() {
+  const bytes = crypto.getRandomValues(new Uint8Array(20))
+  let bits = ''
+  for (const b of bytes) bits += b.toString(2).padStart(8, '0')
+  let out = ''
+  for (let i = 0; i < bits.length; i += 5) out += RECOVERY_ALPHABET[parseInt(bits.slice(i, i + 5), 2)]
+  return out.match(/.{4}/g).join('-')
+}
+
+/** Upper-cases and drops spaces/dashes so a hand-typed key still matches. */
+export function normalizeRecoveryKey(text) {
+  return String(text ?? '')
+    .toUpperCase()
+    .replace(/[^A-Z2-7]/g, '')
+}
+
+export function isValidRecoveryKey(text) {
+  return normalizeRecoveryKey(text).length === RECOVERY_CHARS
+}
+
+export async function deriveRecoveryKey(text) {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`dayintent-recovery:${normalizeRecoveryKey(text)}`)
+  )
+  return crypto.subtle.importKey('raw', digest, 'AES-GCM', false, ['encrypt', 'decrypt'])
+}
+
+/** Encrypts raw key bytes under `wrappingKey`. */
+export async function wrapRaw(raw, wrappingKey) {
+  const iv = randomIv()
+  const wrapped = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, raw)
+  return { wrapped: bytesToBase64(new Uint8Array(wrapped)), iv: bytesToBase64(iv) }
+}
+
+/** @returns {Promise<Uint8Array>} the raw bytes; throws if `wrappingKey` is wrong */
+export async function unwrapRaw({ wrapped, iv }, wrappingKey) {
+  const raw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(iv) }, wrappingKey, base64ToBytes(wrapped))
+  return new Uint8Array(raw)
+}
+
 /** @returns {Promise<CryptoKey>} a fresh, extractable per-record AES-GCM 256 data key */
 export function generateDataKey() {
   return crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt'])
