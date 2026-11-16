@@ -31,6 +31,15 @@ export function hourLocationsForDay(date, dayInstances, allInstances, items) {
     .sort((a, b) => b.date.localeCompare(a.date))
   if (allDay.length > 0) result.fill(locationOf(allDay[0]))
 
+  // Yesterday's overnight events (e.g. sleep) run into the early hours of
+  // today; they claim those hours first so today's own events still win.
+  const prevDate = addDaysStr(date, -1)
+  for (const i of allInstances) {
+    if (i.date !== prevDate || i.isAllDay || !i.time || i.durationMinutes == null || !locationOf(i)) continue
+    const overflow = timeStrToMinutes(i.time) + i.durationMinutes - 1440
+    for (let h = 0; h < 24 && h * 60 < overflow; h++) result[h] = locationOf(i)
+  }
+
   // Timed events claim the hours they overlap, later starts winning.
   const timed = dayInstances
     .filter((i) => !i.isAllDay && i.time && i.durationMinutes != null && locationOf(i))

@@ -156,6 +156,13 @@ describe('hourLocationsForDay', () => {
     expect(r[13]).toBe(denver)
     expect(r[14]).toBe(vegas)
   })
+
+  it('carries an overnight event’s location into the early hours of the next day', () => {
+    const sleep = inst('s', 'trip', '2099-01-04', { time: '22:30', durationMinutes: 8 * 60 })
+    const r = hourLocationsForDay('2099-01-05', [], [sleep], items)
+    expect(r.map((x, h) => (x ? h : null)).filter((h) => h !== null)).toEqual([0, 1, 2, 3, 4, 5, 6])
+    expect(r[0]).toBe(vegas)
+  })
 })
 
 describe('weather history', () => {

@@ -12,10 +12,11 @@ export function BottomNav() {
   const currentDate = useAppStore((s) => s.currentDate)
   const { pathname } = useLocation()
 
-  const onDayPage = pathname.startsWith('/day')
+  // The week view counts as the Day tab too.
+  const onDayPage = pathname.startsWith('/day') || pathname.startsWith('/week')
 
   const tabs = [
-    { to: `/day/${onDayPage ? todayStr() : currentDate}`, label: 'Day', icon: 'day', active: pathname.startsWith('/day') },
+    { to: `/day/${onDayPage ? todayStr() : currentDate}`, label: 'Day', icon: 'day', active: onDayPage },
     { to: '/backlog', label: 'Backlog', icon: 'backlog', active: pathname.startsWith('/backlog') },
     { to: '/journal', label: 'Journal', icon: 'journal', active: pathname.startsWith('/journal') },
     { to: '/stats', label: 'Stats', icon: 'stats', active: pathname.startsWith('/stats') },
