@@ -2,14 +2,15 @@
 // pass straight through unchanged; the mutating functions save locally first
 // (unchanged local-first behavior, works with no one signed in) and then fire
 // an async, non-blocking push/remove to Firebase — local writes never wait on
-// the network. See src/sync/syncEngine.js for the actual push/pull logic.
+// the network. `opts` (e.g. preserveTimestamp, used by backup import) goes straight
+// to the local save. See src/sync/syncEngine.js for the actual push/pull logic.
 export * from './indexedDbRepository.js'
 
 import * as raw from './indexedDbRepository.js'
 import * as syncEngine from '../sync/syncEngine.js'
 
-export async function saveItem(itemPartial) {
-  const saved = await raw.saveItem(itemPartial)
+export async function saveItem(itemPartial, opts) {
+  const saved = await raw.saveItem(itemPartial, opts)
   syncEngine.pushItem(saved).catch(() => {})
   return saved
 }
@@ -19,8 +20,8 @@ export async function deleteItem(id) {
   syncEngine.deleteItemRemote(id).catch(() => {})
 }
 
-export async function saveInstance(instancePartial) {
-  const saved = await raw.saveInstance(instancePartial)
+export async function saveInstance(instancePartial, opts) {
+  const saved = await raw.saveInstance(instancePartial, opts)
   const parent = await raw.getItem(saved.itemId)
   syncEngine.pushInstance(saved, parent?.syncEnabled ?? false).catch(() => {})
   return saved
@@ -31,8 +32,8 @@ export async function deleteInstance(id) {
   syncEngine.deleteInstanceRemote(id).catch(() => {})
 }
 
-export async function saveCategory(categoryPartial) {
-  const saved = await raw.saveCategory(categoryPartial)
+export async function saveCategory(categoryPartial, opts) {
+  const saved = await raw.saveCategory(categoryPartial, opts)
   // Device-local categories never go to the cloud.
   if (saved.syncEnabled !== false) syncEngine.pushCategory(saved).catch(() => {})
   return saved
@@ -43,8 +44,8 @@ export async function deleteCategory(id) {
   syncEngine.removeCategory(id).catch(() => {})
 }
 
-export async function saveGroup(groupPartial) {
-  const saved = await raw.saveGroup(groupPartial)
+export async function saveGroup(groupPartial, opts) {
+  const saved = await raw.saveGroup(groupPartial, opts)
   syncEngine.pushGroup(saved).catch(() => {})
   return saved
 }
@@ -61,8 +62,8 @@ export async function deleteGroup(id) {
   }
 }
 
-export async function saveJournal(journalPartial) {
-  const saved = await raw.saveJournal(journalPartial)
+export async function saveJournal(journalPartial, opts) {
+  const saved = await raw.saveJournal(journalPartial, opts)
   syncEngine.pushJournal(saved).catch(() => {})
   return saved
 }
