@@ -104,7 +104,9 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
   const [syncEnabled, setSyncEnabled] = useState(existingItem?.syncEnabled ?? signedIn)
   const [groupId, setGroupId] = useState(existingItem?.groupId ?? '')
   // Where it happens; the day view shows that place's weather while it's on.
-  const [location, setLocation] = useState(existingItem?.location ?? null)
+  const [location, setLocation] = useState(
+    instance?.locationOverride !== undefined ? instance.locationOverride : (existingItem?.location ?? null),
+  )
   const weatherEnabled = useWeatherStore((s) => s.settings.enabled)
   // When this task was last sent to Google Calendar (see GoogleCalendarButton).
   const [googleSharedAt, setGoogleSharedAt] = useState(existingItem?.googleSharedAt ?? null)
@@ -219,7 +221,8 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
       syncEnabled,
       groupId: groupId || null,
       googleSharedAt,
-      location,
+      // Like title/category: a plain "Save" keeps the series' place and stores the edit on this occurrence.
+      location: scopeToInstance ? (existingItem.location ?? null) : location,
     }
 
     savingRef.current = true
@@ -279,10 +282,12 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
           await setInstanceDuration(instanceId, effectiveDuration, isAllDay)
         }
         if (scopeToInstance) {
-          await setInstanceOverrides(instanceId, { title: title.trim(), categoryId })
+          await setInstanceOverrides(instanceId, { title: title.trim(), categoryId, location })
         }
         if (scope === 'future') await splitSeriesFrom(itemId, scheduledDate, payload)
         else await updateItem(itemId, payload)
+        // A series-wide edit means this occurrence follows the series again.
+        if (applyToSeries && instance?.locationOverride !== undefined) await clearInstanceLocationOverride(instanceId)
         if (scope === 'all' && (inJournal === Boolean(instance?.journalExcluded) || journalTouched)) {
           await setJournalExcludedForItem(itemId, !inJournal, null)
         }
@@ -588,7 +593,7 @@ export function ItemDetailModal({ itemId, instanceId, date, time, initialTitle, 
             ) : (
               <PlaceSearch placeholder="📍 Location (for weather)" onPick={setLocation} />
             )}
-            {location && isRecurringInstance && <p className="stats-section-hint">The location applies to the whole series.</p>}
+            {isRecurringInstance && <p className="stats-section-hint">"This event" changes the location for this day only; "This & future" or "All events" change it for the series.</p>}
           </div>
         )}
 

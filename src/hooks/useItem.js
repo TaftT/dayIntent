@@ -12,11 +12,14 @@ export function applyInstanceOverrides(item, instance) {
   if (!item || !instance) return item
   const hasTitle = instance.titleOverride != null
   const hasCategory = instance.categoryIdOverride !== undefined
-  if (!hasTitle && !hasCategory) return item
+  // undefined = inherit the series' location; null = this day has none.
+  const hasLocation = instance.locationOverride !== undefined
+  if (!hasTitle && !hasCategory && !hasLocation) return item
   return {
     ...item,
     ...(hasTitle ? { title: instance.titleOverride } : {}),
     ...(hasCategory ? { categoryId: instance.categoryIdOverride } : {}),
+    ...(hasLocation ? { location: instance.locationOverride } : {}),
   }
 }
 
@@ -24,6 +27,6 @@ export function useInstanceItem(instance) {
   const item = useItem(instance.itemId)
   return useMemo(
     () => applyInstanceOverrides(item, instance),
-    [item, instance.titleOverride, instance.categoryIdOverride]
+    [item, instance.titleOverride, instance.categoryIdOverride, instance.locationOverride]
   )
 }

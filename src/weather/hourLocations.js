@@ -1,3 +1,4 @@
+import { applyInstanceOverrides } from '../hooks/useItem.js'
 import { addDaysStr } from '../utils/dateUtils.js'
 import { timeStrToMinutes } from '../utils/dateUtils.js'
 
@@ -16,7 +17,7 @@ const allDaySpan = (instance) => Math.max(1, Math.round((instance.durationMinute
  * @returns {({lat: number, lon: number, label: string}|null)[]} 24 entries
  */
 export function hourLocationsForDay(date, dayInstances, allInstances, items) {
-  const locationOf = (instance) => items.find((i) => i.id === instance.itemId)?.location ?? null
+  const locationOf = (instance) => applyInstanceOverrides(items.find((i) => i.id === instance.itemId), instance)?.location ?? null
   const result = Array(24).fill(null)
 
   // All-day events covering today, including multi-day ones that began earlier.
