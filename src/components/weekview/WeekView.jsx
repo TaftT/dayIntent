@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { DndContext, pointerWithin, useDraggable, useDroppable } from '@dnd-kit/core'
 import { useParams } from 'react-router-dom'
 import { usePaneNavigate } from '../../hooks/usePane.jsx'
 import { useCanShowWeek } from '../../hooks/useIsWide.js'
@@ -15,6 +16,10 @@ import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.j
 import { addDaysStr, formatTimeLabel, isTodayStr, minutesToTimeStr, timeStrToMinutes, todayStr, fromDateStr } from '../../utils/dateUtils.js'
 import { format } from 'date-fns'
 import { computeOverlapIndices } from '../dayview/overlapLayout.js'
+import { weekTimeAfterDrag } from './weekDrag.js'
+import { usePlannerSensors } from '../../utils/dnd/dndContextConfig.js'
+import { useUndoMoveShortcut } from '../../hooks/useUndoMoveShortcut.js'
+import { usePane } from '../../hooks/usePane.jsx'
 
 // The week view is its own, tighter grid: seven columns have to fit side by
 // side, and a landscape phone is short, so hours are about 60% of the day
@@ -54,12 +59,31 @@ function WeekBlock({ instance, item, category, date, overlapIndex = 0, overflowM
     : Math.max(Math.min(spanMin * PX_PER_MIN, WEEK_DAY_HEIGHT - top), MIN_BLOCK_PX)
 
   const layer = isReminder ? 0 : Math.min(overlapIndex, MAX_LAYER)
+
+  // Drag to another time or day. The overnight continuation isn't draggable
+  // (it spans two dates, as in the day view), nor is a locked item.
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: overflowMinutes != null ? `cont-${instance.id}` : instance.id,
+    data: { instance },
+    disabled: overflowMinutes != null || Boolean(instance.locked),
+  })
+  // A drag ends with a click on the block; don't let that open the item.
+  const justDragged = useRef(false)
+  useEffect(() => {
+    if (!isDragging) return undefined
+    return () => {
+      justDragged.current = true
+      setTimeout(() => (justDragged.current = false), 200)
+    }
+  }, [isDragging])
+
   const style = {
     top: isReminder ? Math.max(top - REMINDER_PX, 0) : top,
     height,
     left: 1 + (layer > 0 ? LAYER_FIRST_LEFT_PX + (layer - 1) * LAYER_LEFT_STEP_PX : 0),
     right: 1 + (layer > 0 ? LAYER_FIRST_RIGHT_PX + (layer - 1) * LAYER_RIGHT_STEP_PX : 0),
-    zIndex: isReminder ? 15 : 1 + layer,
+    zIndex: isDragging ? 30 : isReminder ? 15 : 1 + layer,
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: layer > 0 ? 0.88 : 1,
     borderColor: color,
     ...(isReminder
@@ -76,6 +100,7 @@ function WeekBlock({ instance, item, category, date, overlapIndex = 0, overflowM
 
   const open = (e) => {
     e.stopPropagation()
+    if (justDragged.current) return
     openModal('itemDetail', { itemId: item.id, instanceId: instance.id, date, time: instance.time })
   }
   const toggle = (e) => {
@@ -87,7 +112,10 @@ function WeekBlock({ instance, item, category, date, overlapIndex = 0, overflowM
     <div
       className={`week-block status-${status}${isReminder ? ' week-block-reminder' : ''}${layer > 0 ? ' week-block-layered' : ''}`}
       data-item-id={instance.itemId}
+      ref={setNodeRef}
       style={style}
+      {...listeners}
+      {...attributes}
       onClick={open}
       title={`${item.title}${instance.time ? ` · ${formatTimeLabel(instance.time)}` : ''}`}
     >
@@ -104,6 +132,7 @@ function WeekBlock({ instance, item, category, date, overlapIndex = 0, overflowM
 function WeekColumn({ date, instances, previousInstances, items, categories, hideSynced }) {
   const openModal = useAppStore((s) => s.openModal)
   const colRef = useRef(null)
+  const { setNodeRef: setDropRef } = useDroppable({ id: `day-${date}`, data: { date } })
 
   const entries = useMemo(() => {
     const itemById = new Map(items.map((i) => [i.id, i]))
@@ -151,7 +180,10 @@ function WeekColumn({ date, instances, previousInstances, items, categories, hid
 
   return (
     <div
-      ref={colRef}
+      ref={(node) => {
+        colRef.current = node
+        setDropRef(node)
+      }}
       className={`week-col${isTodayStr(date) ? ' week-col-today' : ''}`}
       style={{ height: WEEK_DAY_HEIGHT }}
       onClick={handleClick}
@@ -197,6 +229,11 @@ export function WeekView() {
   const items = useEntityStore((s) => s.items)
   const categories = useEntityStore((s) => s.categories)
   const hideSynced = useAuthStore((s) => Boolean(s.user) && s.needsUnlock)
+  const sensors = usePlannerSensors()
+  const moveInstanceDate = useEntityStore((s) => s.moveInstanceDate)
+  const moveInstanceTime = useEntityStore((s) => s.moveInstanceTime)
+  const recordMove = useEntityStore((s) => s.recordMove)
+  useUndoMoveShortcut(usePane()?.id !== 'secondary')
 
   // The week is the 7 days starting on the selected date (not a calendar week).
   const weekStart = date
@@ -228,6 +265,42 @@ export function WeekView() {
 
   if (!canShowWeek) return null
 
+  // Dropping a block moves it to the column under the pointer, at the dragged
+  // time. A move to another day is costed as one move (date + time together).
+  const handleDragEnd = async ({ active, over, delta }) => {
+    const dragged = active.data.current?.instance
+    if (!dragged || dragged.isAllDay || !dragged.time || dragged.locked) return
+    const targetDate = over?.data.current?.date ?? dragged.date
+    const duration = dragged.durationMinutes ?? 30
+    const newTime = weekTimeAfterDrag(dragged.time, delta.y, PX_PER_MIN, duration)
+    if (targetDate === dragged.date && newTime === dragged.time) return
+
+    // Everything a move can change, so Undo can put it all back.
+    const before = {
+      id: dragged.id,
+      date: dragged.date,
+      time: dragged.time,
+      isAllDay: dragged.isAllDay,
+      moves: dragged.moves,
+      percentComplete: dragged.percentComplete,
+      finalized: dragged.finalized,
+      status: dragged.status,
+      startPercent: dragged.startPercent,
+      finalPercent: dragged.finalPercent,
+    }
+    try {
+      if (targetDate !== dragged.date) {
+        await moveInstanceDate(dragged.id, targetDate, { toTime: newTime })
+        if (newTime !== dragged.time) await moveInstanceTime(dragged.id, newTime, { record: false })
+      } else {
+        await moveInstanceTime(dragged.id, newTime)
+      }
+      recordMove([before])
+    } catch {
+      // e.g. became locked meanwhile — leave it where it was.
+    }
+  }
+
   return (
     <div className="day-view week-view">
       <TopBar date={date} mode="week" />
@@ -254,6 +327,7 @@ export function WeekView() {
           </div>
         ))}
       </div>
+      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
       <div className="week-scroll" ref={scrollRef}>
         <div className="week-body">
           <div className="week-gutter week-hours">
@@ -276,6 +350,7 @@ export function WeekView() {
           ))}
         </div>
       </div>
+      </DndContext>
       {!journalOpen && (
         <button className="fab" onClick={() => openModal('quickAdd', { date })} aria-label="Quick add item">
           <Icon name="plus" size={24} />

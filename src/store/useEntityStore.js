@@ -469,14 +469,10 @@ export const useEntityStore = create((set, get) => ({
     for (const snap of entry) {
       const cur = await repo.getInstance(snap.id)
       if (!cur) continue // deleted since
-      await repo.saveInstance({
-        ...cur,
-        time: snap.time,
-        isAllDay: snap.isAllDay,
-        moves: snap.moves,
-        percentComplete: snap.percentComplete,
-      })
+      const { id: _id, ...fields } = snap // time, moves, ... and (week view) date + finalization state
+      await repo.saveInstance({ ...cur, ...fields })
       dates.add(cur.date)
+      if (fields.date) dates.add(fields.date)
     }
     await Promise.all([...dates].map((d) => get().loadInstancesForDate(d)))
     await get().refreshItems()
