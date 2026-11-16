@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { usePane, usePaneNavigate } from '../../hooks/usePane.jsx'
+import { useUndoMoveShortcut } from '../../hooks/useUndoMoveShortcut.js'
 import { DndContext } from '@dnd-kit/core'
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { TopBar } from '../layout/TopBar.jsx'
@@ -52,7 +53,6 @@ export function DayView() {
     .filter((i) => i.overflowMinutes > 0)
   const moveInstanceTime = useEntityStore((s) => s.moveInstanceTime)
   const recordMove = useEntityStore((s) => s.recordMove)
-  const undoLastMove = useEntityStore((s) => s.undoLastMove)
   const journalOpen = useAppStore((s) => s.journalOpen)
   const openModal = useAppStore((s) => s.openModal)
   const setCurrentDate = useAppStore((s) => s.setCurrentDate)
@@ -111,22 +111,7 @@ export function DayView() {
     return () => clearInterval(timer)
   }, [highlightItemId])
 
-  // Ctrl/Cmd+Z undoes the last move, but never while typing or with a form
-  // open, where it has its own meaning. Only the main pane listens, so a split
-  // view with two days doesn't undo twice.
-  useEffect(() => {
-    if (isSecondaryPane) return undefined
-    const onKey = (e) => {
-      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return
-      const t = e.target
-      if (t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
-      if (useAppStore.getState().activeModal) return
-      e.preventDefault()
-      undoLastMove()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [isSecondaryPane, undoLastMove])
+  useUndoMoveShortcut(!isSecondaryPane)
 
   const isGroupDrag = (event) => {
     const dragged = event.active.data.current?.instance

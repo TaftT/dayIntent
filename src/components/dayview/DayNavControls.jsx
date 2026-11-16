@@ -48,7 +48,7 @@ export function DayNavControls({ date, mode = 'day' }) {
       >
         {isWeek ? formatRangeHeading(date) : formatDayHeading(date)}
       </button>
-      {!isWeek && canUndoMove && (
+      {canUndoMove && (
         <button
           type="button"
           className="icon-button undo-move-button"

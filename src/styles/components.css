@@ -4092,3 +4092,17 @@
 .week-block-layered {
   box-shadow: -2px 3px 8px rgba(0, 0, 0, 0.45);
 }
+
+.week-block {
+  touch-action: pan-y;
+  cursor: grab;
+}
+
+/* Dark mode: white complete-circles on the week view's blocks. The soft dark
+   edge keeps them readable on a light category colour. */
+@media (prefers-color-scheme: dark) {
+  .week-block-check {
+    color: #fff;
+    filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.7));
+  }
+}
