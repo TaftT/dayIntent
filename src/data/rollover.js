@@ -1,4 +1,14 @@
 import * as repo from './index.js'
+import * as raw from './indexedDbRepository.js'
+
+// Rollover is derived bookkeeping, not a user edit: every device reaches the
+// same finalized status from the same percent values on its own. So its writes
+// go straight to the local DB (never pushed to the cloud) and keep the
+// record's existing `updatedAt`. Otherwise a device holding a stale copy — e.g.
+// a freshly signed-in desktop that rolls over before its first sync — would
+// stamp "now" on a ghost/uncompleted day and win last-write-wins against the
+// cloud's newer, genuinely completed version.
+const KEEP_TS = { preserveTimestamp: true }
 
 /**
  * Lazy, idempotent end-of-day rollover pass. Safe to call repeatedly (app
@@ -27,7 +37,7 @@ export async function runRollover(today) {
 
     let next = instance
     if (next.startPercent === null) {
-      next = await repo.saveInstance({ ...next, startPercent: next.percentComplete })
+      next = await raw.saveInstance({ ...next, startPercent: next.percentComplete }, KEEP_TS)
     }
 
     if (next.date < today) {
@@ -37,23 +47,29 @@ export async function runRollover(today) {
       else if (currentPercent > next.startPercent) status = 'worked_on'
       else status = 'ghost'
 
-      await repo.saveInstance({
-        ...next,
-        status,
-        finalPercent: currentPercent,
-        finalized: true,
-      })
+      await raw.saveInstance(
+        {
+          ...next,
+          status,
+          finalPercent: currentPercent,
+          finalized: true,
+        },
+        KEEP_TS,
+      )
 
       if (status !== 'completed' && !item.recurrence && !item.isUnscheduled) {
         // Land it at the top of the backlog (negative order sorts ahead of
         // every positive one) so a task that fell off the calendar is the
         // first thing seen, not buried at the bottom.
-        await repo.saveItem({
-          ...item,
-          isUnscheduled: true,
-          percentComplete: currentPercent,
-          order: -Date.now(),
-        })
+        await raw.saveItem(
+          {
+            ...item,
+            isUnscheduled: true,
+            percentComplete: currentPercent,
+            order: -Date.now(),
+          },
+          KEEP_TS,
+        )
       }
     }
   }
