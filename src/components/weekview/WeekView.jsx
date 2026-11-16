@@ -14,7 +14,7 @@ import { getDisplayStatus } from '../../data/rollover.js'
 import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
 import { addDaysStr, formatTimeLabel, isTodayStr, minutesToTimeStr, timeStrToMinutes, todayStr, fromDateStr } from '../../utils/dateUtils.js'
 import { format } from 'date-fns'
-import { computeLanes } from './weekLayout.js'
+import { computeOverlapIndices } from '../dayview/overlapLayout.js'
 
 // The week view is its own, tighter grid: seven columns have to fit side by
 // side, and a landscape phone is short, so hours are about 60% of the day
@@ -26,7 +26,17 @@ const MIN_BLOCK_PX = 18
 const REMINDER_PX = 16
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
 
-function WeekBlock({ instance, item, category, date, lane, lanes, overflowMinutes = null }) {
+// Overlapping blocks layer exactly like the day view: the later-starting one sits
+// on top, inset from the earlier one so its left edge (and complete-circle) stays
+// visible, slightly see-through. The day view's insets are sized for a wide
+// column, so they are scaled down here for a column ~1/7th of the screen.
+const MAX_LAYER = 3
+const LAYER_FIRST_LEFT_PX = 16
+const LAYER_LEFT_STEP_PX = 7
+const LAYER_FIRST_RIGHT_PX = 6
+const LAYER_RIGHT_STEP_PX = 6
+
+function WeekBlock({ instance, item, category, date, overlapIndex = 0, overflowMinutes = null }) {
   const markInstanceComplete = useEntityStore((s) => s.markInstanceComplete)
   const openModal = useAppStore((s) => s.openModal)
   const signedIn = useAuthStore((s) => Boolean(s.user))
@@ -43,13 +53,14 @@ function WeekBlock({ instance, item, category, date, lane, lanes, overflowMinute
     ? REMINDER_PX
     : Math.max(Math.min(spanMin * PX_PER_MIN, WEEK_DAY_HEIGHT - top), MIN_BLOCK_PX)
 
-  const widthPct = 100 / lanes
+  const layer = isReminder ? 0 : Math.min(overlapIndex, MAX_LAYER)
   const style = {
     top: isReminder ? Math.max(top - REMINDER_PX, 0) : top,
     height,
-    left: `calc(${lane * widthPct}% + 1px)`,
-    width: `calc(${widthPct}% - 2px)`,
-    zIndex: 1 + lane,
+    left: 1 + (layer > 0 ? LAYER_FIRST_LEFT_PX + (layer - 1) * LAYER_LEFT_STEP_PX : 0),
+    right: 1 + (layer > 0 ? LAYER_FIRST_RIGHT_PX + (layer - 1) * LAYER_RIGHT_STEP_PX : 0),
+    zIndex: isReminder ? 15 : 1 + layer,
+    opacity: layer > 0 ? 0.88 : 1,
     borderColor: color,
     ...(isReminder
       ? { background: 'var(--color-surface)', color: 'var(--color-text)', borderLeft: `3px solid ${color}` }
@@ -74,7 +85,7 @@ function WeekBlock({ instance, item, category, date, lane, lanes, overflowMinute
 
   return (
     <div
-      className={`week-block status-${status}${isReminder ? ' week-block-reminder' : ''}`}
+      className={`week-block status-${status}${isReminder ? ' week-block-reminder' : ''}${layer > 0 ? ' week-block-layered' : ''}`}
       data-item-id={instance.itemId}
       style={style}
       onClick={open}
@@ -116,19 +127,20 @@ function WeekColumn({ date, instances, previousInstances, items, categories, hid
     return out
   }, [instances, previousInstances, items, hideSynced, date])
 
-  const lanes = useMemo(
-    () =>
-      computeLanes(
-        entries.map((e) => {
-          const duration = e.instance.durationMinutes ?? e.item.durationMinutes ?? null
-          const start = e.overflowMinutes != null ? 0 : timeStrToMinutes(e.instance.time)
-          const len = e.overflowMinutes ?? duration ?? 0
-          // A reminder is a thin line; give it a small slot so it doesn't stack.
-          return { id: e.key, start, end: start + Math.max(len, 20) }
-        }),
-      ),
-    [entries],
-  )
+  // Same rule as the day view: only sized blocks layer; reminders are thin
+  // lines that never need nudging aside.
+  const overlapIndexByKey = useMemo(() => {
+    const blocks = []
+    for (const e of entries) {
+      const duration = e.instance.durationMinutes ?? e.item.durationMinutes ?? null
+      if (e.overflowMinutes != null) blocks.push({ id: e.key, start: 0, end: e.overflowMinutes })
+      else if (duration != null) {
+        const start = timeStrToMinutes(e.instance.time)
+        blocks.push({ id: e.key, start, end: start + duration })
+      }
+    }
+    return computeOverlapIndices(blocks)
+  }, [entries])
 
   const handleClick = (e) => {
     if (e.target.closest('.week-block')) return
@@ -153,7 +165,6 @@ function WeekColumn({ date, instances, previousInstances, items, categories, hid
         </div>
       )}
       {entries.map((e) => {
-        const l = lanes.get(e.key) ?? { lane: 0, lanes: 1 }
         const category = categories.find((c) => c.id === e.item.categoryId)
         return (
           <WeekBlock
@@ -162,8 +173,7 @@ function WeekColumn({ date, instances, previousInstances, items, categories, hid
             item={e.item}
             category={category}
             date={e.originalDate ?? date}
-            lane={l.lane}
-            lanes={l.lanes}
+            overlapIndex={overlapIndexByKey.get(e.key) ?? 0}
             overflowMinutes={e.overflowMinutes}
           />
         )
