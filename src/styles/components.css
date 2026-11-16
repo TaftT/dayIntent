@@ -4088,3 +4088,7 @@
 .backup-error {
   color: var(--color-danger);
 }
+
+.week-block-layered {
+  box-shadow: -2px 3px 8px rgba(0, 0, 0, 0.45);
+}
