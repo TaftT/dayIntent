@@ -1,4 +1,5 @@
 import { useAppStore } from '../../store/useAppStore.js'
+import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { firebaseEnabled } from '../../firebase/config.js'
 import { DayNavControls } from '../dayview/DayNavControls.jsx'
@@ -19,6 +20,8 @@ export function TopBar({ date, mode = 'day' }) {
   const isSecondaryPane = usePane()?.id === 'secondary'
   const wide = useIsWide()
   const toggleJournal = useAppStore((s) => s.toggleJournal)
+  const canUndoMove = useEntityStore((s) => s.moveHistory.length > 0)
+  const undoLastMove = useEntityStore((s) => s.undoLastMove)
   const authReady = useAuthStore((s) => s.ready)
   const user = useAuthStore((s) => s.user)
   const needsUnlock = useAuthStore((s) => s.needsUnlock)
@@ -44,6 +47,11 @@ export function TopBar({ date, mode = 'day' }) {
     <header className="top-bar">
       <div className="top-bar-left">{date && <DayNavControls date={date} mode={mode} />}</div>
       <div className="top-bar-right">
+        {date && mode === 'day' && canUndoMove && (
+          <button className="icon-button" onClick={undoLastMove} aria-label="Undo last move" title="Undo last move (Ctrl+Z)">
+            ↶
+          </button>
+        )}
         {date && mode === 'day' && (
           <button
             className={hasJournalEntry ? 'icon-button icon-button-journal-has-entry' : 'icon-button'}

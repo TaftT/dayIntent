@@ -451,6 +451,38 @@ export const useEntityStore = create((set, get) => ({
     return updated
   },
 
+  // ---- Undo for day-view moves -------------------------------------------
+  // Each entry is the "before" snapshot of the instance(s) one drag moved
+  // (a multi-select drag is one entry). Capped so it can't grow forever.
+  moveHistory: [],
+  recordMove: (before) => {
+    if (before.length === 0) return
+    set((s) => ({ moveHistory: [...s.moveHistory, before].slice(-20) }))
+  },
+  /** Puts the most recently moved item(s) back. @returns {Promise<boolean>} whether anything was undone */
+  undoLastMove: async () => {
+    const history = get().moveHistory
+    if (history.length === 0) return false
+    const entry = history[history.length - 1]
+    set({ moveHistory: history.slice(0, -1) })
+    const dates = new Set()
+    for (const snap of entry) {
+      const cur = await repo.getInstance(snap.id)
+      if (!cur) continue // deleted since
+      await repo.saveInstance({
+        ...cur,
+        time: snap.time,
+        isAllDay: snap.isAllDay,
+        moves: snap.moves,
+        percentComplete: snap.percentComplete,
+      })
+      dates.add(cur.date)
+    }
+    await Promise.all([...dates].map((d) => get().loadInstancesForDate(d)))
+    await get().refreshItems()
+    return true
+  },
+
   // Drops this occurrence's own place so it follows the series again.
   clearInstanceLocationOverride: async (instanceId) => {
     const inst = await repo.getInstance(instanceId)
