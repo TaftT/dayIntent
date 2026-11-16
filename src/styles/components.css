@@ -4065,3 +4065,26 @@
   font-size: 1.6rem;
   line-height: 1;
 }
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.backup-preview {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.backup-message {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+}
+
+.backup-error {
+  color: var(--color-danger);
+}

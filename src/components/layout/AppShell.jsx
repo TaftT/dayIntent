@@ -47,6 +47,12 @@ export function AppShell({ children }) {
     initAuth()
   }, [init, initAuth])
 
+  // Ask the browser not to evict this app's data when storage runs low. Silent
+  // where unsupported; some browsers decide from engagement, so a "no" is fine.
+  useEffect(() => {
+    if (initialized) navigator.storage?.persist?.().catch(() => {})
+  }, [initialized])
+
   // A tab or installed app left open for days still needs its recurring series
   // extended as the rolling window moves: re-check whenever it comes back into
   // view, and hourly while it stays open.
