@@ -118,7 +118,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
           </button>
           <span className="instance-line-title">{item.title}</span>
           {instance.locked && <span className="instance-pin-badge" title="Locked">🔒</span>}
-          <InstanceInfoIcons item={item} instance={instance} category={category} />
+          <InstanceInfoIcons item={item} instance={instance} />
           {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
           {signedIn && item.syncEnabled && (
             <span className="instance-sync-badge" title="Synced to cloud">☁</span>
@@ -183,7 +183,7 @@ export function InstanceBlock({ instance, date, overlapIndex = 0 }) {
       <div className="instance-block-title">
         {item.title}
         {instance.locked && <span className="instance-pin-badge" title="Locked">🔒</span>}
-        <InstanceInfoIcons item={item} instance={instance} category={category} />
+        <InstanceInfoIcons item={item} instance={instance} />
         {item.googleSharedAt && <span className="gcal-badge" title="Added to Google Calendar">G</span>}
         {signedIn && item.syncEnabled && (
           <span className="instance-sync-badge" title="Synced to cloud">☁</span>
