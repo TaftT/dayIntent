@@ -10,6 +10,10 @@ import { adjustTally } from '../utils/moodTally.js'
 import { moveDistanceMinutes } from '../utils/scoring.js'
 import { loadScoringSettings } from '../utils/scoringSettings.js'
 
+// Two saved places are the same when they point at the same coordinates (or are both absent).
+const sameLocation = (a, b) =>
+  (a?.lat ?? null) === (b?.lat ?? null) && (a?.lon ?? null) === (b?.lon ?? null)
+
 // True once an occurrence is entirely in the past, so it's marked complete
 // when created or moved there: any earlier day, or today with a time that was
 // *chosen* and whose end (start + duration) is already behind the clock.
@@ -426,17 +430,35 @@ export const useEntityStore = create((set, get) => ({
   // Per-occurrence title/category ("Save" on a recurring instance). Stored on
   // the instance as titleOverride/categoryIdOverride only when they differ
   // from the series' item; null means "inherit from the item".
-  setInstanceOverrides: async (instanceId, { title, categoryId }) => {
+  setInstanceOverrides: async (instanceId, { title, categoryId, location }) => {
     const inst = await repo.getInstance(instanceId)
     const item = await repo.getItem(inst.itemId)
     const updated = await repo.saveInstance({
       ...inst,
       titleOverride: title !== item.title ? title : null,
       categoryIdOverride: (categoryId ?? null) !== (item.categoryId ?? null) ? (categoryId ?? null) : undefined,
+      // Only touched when the caller passes a location. undefined = inherit
+      // the series' place; null = this occurrence has none.
+      ...(location === undefined
+        ? {}
+        : {
+            locationOverride:
+              sameLocation(location, item.location) ? undefined : (location ?? null),
+          }),
     })
     await get().loadInstancesForDate(inst.date)
     await get().refreshAllInstances()
     return updated
+  },
+
+  // Drops this occurrence's own place so it follows the series again.
+  clearInstanceLocationOverride: async (instanceId) => {
+    const inst = await repo.getInstance(instanceId)
+    if (!inst || inst.locationOverride === undefined) return
+    const { locationOverride: _drop, ...rest } = inst
+    await repo.saveInstance({ ...rest, locationOverride: undefined })
+    await get().loadInstancesForDate(inst.date)
+    await get().refreshAllInstances()
   },
 
   // Changes just this one occurrence's duration/all-day, leaving the series'

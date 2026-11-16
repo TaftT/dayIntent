@@ -157,6 +157,17 @@ describe('hourLocationsForDay', () => {
     expect(r[14]).toBe(vegas)
   })
 
+  it('lets one occurrence override the series location (or clear it)', () => {
+    const other = inst('o', 'trip', '2099-01-05', { time: '09:00', durationMinutes: 60, locationOverride: denver })
+    const none = inst('n', 'trip', '2099-01-05', { time: '12:00', durationMinutes: 60, locationOverride: null })
+    const plain = inst('p', 'trip', '2099-01-05', { time: '15:00', durationMinutes: 60 })
+    const day = [other, none, plain]
+    const r = hourLocationsForDay('2099-01-05', day, day, items)
+    expect(r[9]).toBe(denver)
+    expect(r[12]).toBe(null)
+    expect(r[15]).toBe(vegas)
+  })
+
   it('carries an overnight event’s location into the early hours of the next day', () => {
     const sleep = inst('s', 'trip', '2099-01-04', { time: '22:30', durationMinutes: 8 * 60 })
     const r = hourLocationsForDay('2099-01-05', [], [sleep], items)
