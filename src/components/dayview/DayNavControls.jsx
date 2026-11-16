@@ -1,6 +1,6 @@
 import { usePaneNavigate } from '../../hooks/usePane.jsx'
 import { useCanShowWeek } from '../../hooks/useIsWide.js'
-import { addDaysStr, todayStr, formatDayHeading, formatWeekHeading, isTodayStr, weekStartStr } from '../../utils/dateUtils.js'
+import { addDaysStr, todayStr, formatDayHeading, formatRangeHeading, isTodayStr } from '../../utils/dateUtils.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 
@@ -14,30 +14,39 @@ export function DayNavControls({ date, mode = 'day' }) {
   const canUndoMove = useEntityStore((s) => s.moveHistory.length > 0)
   const undoLastMove = useEntityStore((s) => s.undoLastMove)
   const isWeek = mode === 'week'
-  const step = isWeek ? 7 : 1
   const unit = isWeek ? 'week' : 'day'
   const goTo = (d) => navigate(`/${unit}/${d}`)
-  const atToday = isWeek ? weekStartStr(date) === weekStartStr(todayStr()) : isTodayStr(date)
+  const atToday = isTodayStr(date)
   // Seven columns don't fit beside a split view, so the toggle is hidden then.
   const showToggle = canShowWeek && !splitOpen
 
   return (
     <div className="day-nav-controls">
-      <button className="icon-button" onClick={() => goTo(addDaysStr(date, -step))} aria-label={`Previous ${unit}`}>
+      {isWeek && (
+        <button className="icon-button" onClick={() => goTo(addDaysStr(date, -7))} aria-label="Back 7 days" title="Back 7 days">
+          «
+        </button>
+      )}
+      <button className="icon-button" onClick={() => goTo(addDaysStr(date, -1))} aria-label={isWeek ? 'Start one day earlier' : 'Previous day'}>
         ‹
       </button>
       <button className="btn btn-subtle today-button" onClick={() => goTo(todayStr())} disabled={atToday}>
         Today
       </button>
-      <button className="icon-button" onClick={() => goTo(addDaysStr(date, step))} aria-label={`Next ${unit}`}>
+      <button className="icon-button" onClick={() => goTo(addDaysStr(date, 1))} aria-label={isWeek ? 'Start one day later' : 'Next day'}>
         ›
       </button>
+      {isWeek && (
+        <button className="icon-button" onClick={() => goTo(addDaysStr(date, 7))} aria-label="Forward 7 days" title="Forward 7 days">
+          »
+        </button>
+      )}
       <button
         className="day-heading"
         onClick={() => openModal('datePicker', { date, onPick: goTo })}
         aria-label="Jump to date"
       >
-        {isWeek ? formatWeekHeading(date) : formatDayHeading(date)}
+        {isWeek ? formatRangeHeading(date) : formatDayHeading(date)}
       </button>
       {!isWeek && canUndoMove && (
         <button

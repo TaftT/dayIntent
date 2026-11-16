@@ -12,7 +12,7 @@ import { useAppStore } from '../../store/useAppStore.js'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { getDisplayStatus } from '../../data/rollover.js'
 import { contrastTextColor, UNCATEGORIZED_COLOR } from '../../utils/colorUtils.js'
-import { addDaysStr, formatTimeLabel, isTodayStr, minutesToTimeStr, timeStrToMinutes, todayStr, weekStartStr, fromDateStr } from '../../utils/dateUtils.js'
+import { addDaysStr, formatTimeLabel, isTodayStr, minutesToTimeStr, timeStrToMinutes, todayStr, fromDateStr } from '../../utils/dateUtils.js'
 import { format } from 'date-fns'
 import { computeLanes } from './weekLayout.js'
 
@@ -188,7 +188,8 @@ export function WeekView() {
   const categories = useEntityStore((s) => s.categories)
   const hideSynced = useAuthStore((s) => Boolean(s.user) && s.needsUnlock)
 
-  const weekStart = weekStartStr(date)
+  // The week is the 7 days starting on the selected date (not a calendar week).
+  const weekStart = date
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDaysStr(weekStart, i)), [weekStart])
 
   // The week plus the day before it (for an overnight item running into Sunday).

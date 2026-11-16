@@ -30,15 +30,11 @@ export function currentWeekRange(now = new Date()) {
   }
 }
 
-/** @param {string} dateStr @returns {string} the Sunday starting the week containing dateStr */
-export function weekStartStr(dateStr) {
-  return toDateStr(startOfWeek(fromDateStr(dateStr), { weekStartsOn: 0 }))
-}
-
-/** @param {string} dateStr @returns {string} e.g. 'Aug 17 – 23, 2026' or 'Aug 30 – Sep 5, 2026' for the week containing dateStr */
-export function formatWeekHeading(dateStr) {
-  const start = fromDateStr(weekStartStr(dateStr))
-  const end = addDays(start, 6)
+/** @param {string} startStr first day @param {number} [days] @returns {string} e.g. 'Aug 17 – 23, 2026', 'Aug 30 – Sep 5, 2026' or 'Dec 30, 2026 – Jan 5, 2027' */
+export function formatRangeHeading(startStr, days = 7) {
+  const start = fromDateStr(startStr)
+  const end = addDays(start, days - 1)
+  if (start.getFullYear() !== end.getFullYear()) return `${format(start, 'MMM d, yyyy')} – ${format(end, 'MMM d, yyyy')}`
   const sameMonth = start.getMonth() === end.getMonth()
   return `${format(start, 'MMM d')} – ${format(end, sameMonth ? 'd' : 'MMM d')}, ${format(end, 'yyyy')}`
 }
