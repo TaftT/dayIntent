@@ -4056,3 +4056,12 @@
   font-size: 0.7rem;
   opacity: 0.9;
 }
+
+/* Sits beside the date, so it can't push the account buttons off a phone. */
+.undo-move-button {
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
+  font-size: 1.6rem;
+  line-height: 1;
+}
