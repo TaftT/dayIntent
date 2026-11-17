@@ -83,6 +83,22 @@ const deletedItemsPath = (uid) => `users/${uid}/deletedItems`
 const deletedInstancesPath = (uid) => `users/${uid}/deletedInstances`
 const verifierPath = (uid) => `users/${uid}/meta/verifier`
 
+export class CloudUnreachableError extends Error {
+  constructor() {
+    super('Couldn’t reach the cloud. Check your connection and try again.')
+    this.name = 'CloudUnreachableError'
+  }
+}
+
+/** Fails a read that never answers (no connection yet, blocked network) instead of spinning forever. */
+export function withTimeout(promise, ms = 20000) {
+  let timer
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new CloudUnreachableError()), ms)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+}
+
 export class WrongKeyError extends Error {
   constructor() {
     super('Could not decrypt your synced data — the password is likely incorrect.')
@@ -100,7 +116,7 @@ const VERIFIER_PLAINTEXT = { check: 'dayintent-key-check' }
 // for them, try to open one existing record first, and only then create it.
 // A genuinely empty cloud (fresh account) just defines the verifier.
 export async function verifyMasterKey(uid, masterKey) {
-  const snap = await get(ref(rtdb, verifierPath(uid)))
+  const snap = await withTimeout(get(ref(rtdb, verifierPath(uid))))
   if (snap.exists()) {
     try {
       const opened = await openEnvelope(snap.val(), masterKey)
@@ -132,10 +148,10 @@ export async function verifyMasterKey(uid, masterKey) {
 }
 
 export async function getOrCreateSalt(uid) {
-  const snap = await get(ref(rtdb, saltPath(uid)))
+  const snap = await withTimeout(get(ref(rtdb, saltPath(uid))))
   if (snap.exists()) return snap.val()
   const salt = generateSalt()
-  await set(ref(rtdb, saltPath(uid)), salt)
+  await withTimeout(set(ref(rtdb, saltPath(uid)), salt))
   return salt
 }
 

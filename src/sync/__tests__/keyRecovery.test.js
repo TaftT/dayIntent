@@ -148,3 +148,11 @@ describe('forgotten-password recovery', () => {
     await expect(redeemRecoveryKey(UID, second, 'x-pass-1')).resolves.toBeTruthy()
   })
 })
+
+describe('withTimeout', () => {
+  it('rejects a read that never answers, and passes through one that does', async () => {
+    const { withTimeout, CloudUnreachableError } = await import('../syncEngine.js')
+    await expect(withTimeout(new Promise(() => {}), 30)).rejects.toBeInstanceOf(CloudUnreachableError)
+    await expect(withTimeout(Promise.resolve(5), 30)).resolves.toBe(5)
+  })
+})

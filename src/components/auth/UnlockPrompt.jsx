@@ -25,8 +25,8 @@ export function UnlockPrompt() {
       setError('')
       await unlock(password)
       closeModal()
-    } catch {
-      setError('Incorrect password')
+    } catch (err) {
+      setError(err?.name === 'WrongKeyError' ? 'Incorrect password' : err?.message ?? 'Could not unlock. Try again.')
     } finally {
       setBusy(false)
     }
