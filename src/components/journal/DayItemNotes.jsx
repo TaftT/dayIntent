@@ -1,4 +1,5 @@
 import { useInstancesForDate } from '../../hooks/useInstancesForDate.js'
+import { sanitizeHtml } from '../../utils/sanitizeHtml.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { ToggleButton } from '../shared/ToggleButton.jsx'
 import { isRichTextEmpty } from '../../utils/richText.js'
@@ -32,7 +33,7 @@ export function DayItemNotes({ date }) {
             </ToggleButton>
           </div>
           {!instance.journalExcluded && (
-            <div className="day-item-note-body" dangerouslySetInnerHTML={{ __html: instance.notes }} />
+            <div className="day-item-note-body" dangerouslySetInnerHTML={{ __html: sanitizeHtml(instance.notes) }} />
           )}
         </div>
       ))}

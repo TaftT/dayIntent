@@ -4150,3 +4150,27 @@
   font-size: 1rem;
   padding: 4px 6px;
 }
+
+.crash-screen {
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 15vh 20px 20px;
+  text-align: center;
+  color: var(--color-text, #111);
+}
+.crash-reload {
+  padding: 10px 22px;
+  border: none;
+  border-radius: 10px;
+  background: #3b6fe0;
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.crash-detail {
+  margin-top: 20px;
+  text-align: left;
+  white-space: pre-wrap;
+  font-size: 0.75rem;
+  opacity: 0.6;
+}

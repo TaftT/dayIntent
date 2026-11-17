@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { sanitizeHtml } from '../../utils/sanitizeHtml.js'
 import { usePaneNavigate } from '../../hooks/usePane.jsx'
 import { endOfMonth, startOfMonth, addMonths, format } from 'date-fns'
 import { TopBar } from '../layout/TopBar.jsx'
@@ -185,7 +186,7 @@ export function JournalViewPage() {
                 <EntryEditor date={j.date} placeholder="Write today's journal…" />
               ) : (
                 !isBlank(j.content) && (
-                  <div className="journal-view-entry-body" dangerouslySetInnerHTML={{ __html: j.content }} />
+                  <div className="journal-view-entry-body" dangerouslySetInnerHTML={{ __html: sanitizeHtml(j.content) }} />
                 )
               )}
               {j.itemNotes.map((n) => (
@@ -200,7 +201,7 @@ export function JournalViewPage() {
                       ]}
                     />
                   </div>
-                  <div className="day-item-note-body" dangerouslySetInnerHTML={{ __html: n.notes }} />
+                  <div className="day-item-note-body" dangerouslySetInnerHTML={{ __html: sanitizeHtml(n.notes) }} />
                 </div>
               ))}
             </article>
