@@ -16,6 +16,7 @@ import { ScreenTimeSection } from './ScreenTimeSection.jsx'
 import { MoodSection } from './MoodSection.jsx'
 import { ScoreSection } from './ScoreSection.jsx'
 import { BackupPanel } from '../backup/BackupPanel.jsx'
+import { RecoveryKeyPanel } from '../auth/RecoveryKeyPanel.jsx'
 
 const STATUS_COLOR = {
   completed: 'var(--color-primary)',
@@ -233,6 +234,7 @@ export function StatsPage() {
         </section>
 
         <BackupPanel />
+        <RecoveryKeyPanel />
       </div>
     </div>
   )
