@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as repo from '../../data/index.js'
 import { useAppStore } from '../../store/useAppStore.js'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { playNotificationSound } from '../../utils/notificationSound.js'
+import { notificationPermission, requestNotificationPermission, showSystemNotification } from '../../utils/systemNotify.js'
 import { todayStr, timeStrToMinutes } from '../../utils/dateUtils.js'
 
 const POLL_INTERVAL_MS = 20000
@@ -10,6 +11,11 @@ const POLL_INTERVAL_MS = 20000
 // this many minutes in the past (e.g. the app was opened mid-day), treat it
 // as already fired without popping a stale toast for something long over.
 const FRESHNESS_WINDOW_MINUTES = 2
+// Browsers throttle or freeze timers in background tabs, so a "start"/"finish"
+// check can run several minutes late. Still worth telling the user then; only
+// "starts in 10 minutes" goes stale quickly.
+const LATE_WINDOW_MINUTES = 6
+const DISMISS_KEY = 'dayintent.notifPromptDismissed'
 
 function nowMinutes() {
   const now = new Date()
@@ -26,29 +32,46 @@ export function ReminderScheduler() {
   const addToast = useAppStore((s) => s.addToast)
   const firedRef = useRef(new Set())
 
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {})
+  const [permission, setPermission] = useState(notificationPermission())
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(DISMISS_KEY) === '1'
+    } catch {
+      return false
     }
+  })
+
+  // The tab coming back to the foreground (or the app being reopened) is when
+  // late reminders are caught up, and when a permission change is noticed.
+  useEffect(() => {
+    const onVisible = () => setPermission(notificationPermission())
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
+
+  const enable = async () => setPermission(await requestNotificationPermission())
+  const dismiss = () => {
+    setDismissed(true)
+    try {
+      localStorage.setItem(DISMISS_KEY, '1')
+    } catch {
+      /* fine */
+    }
+  }
 
   useEffect(() => {
     const notify = (key, kind, message, instanceId) => {
       if (firedRef.current.has(key)) return
       firedRef.current.add(key)
       const minutesPast = nowMinutes() - (Number(key.split('|')[2]) || 0)
-      if (minutesPast > FRESHNESS_WINDOW_MINUTES) return // stale — don't spam on load
+      const maxLate = kind === 'upcoming' ? FRESHNESS_WINDOW_MINUTES : LATE_WINDOW_MINUTES
+      if (minutesPast > maxLate) return // stale — don't spam on load
 
       addToast({ kind, message, instanceId })
       playNotificationSound(kind)
-      if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-        try {
-          new Notification('PlannerApp', { body: message })
-        } catch {
-          // Notification construction can fail in some contexts — the
-          // in-app toast above already covers it.
-        }
-      }
+      // Only when the app isn't in front of the user; the toast covers that case.
+      // Failures are ignored — the in-app toast already covers it.
+      if (document.hidden) showSystemNotification('DayIntent', { body: message, tag: key })
     }
 
     const tick = async () => {
@@ -95,5 +118,16 @@ export function ReminderScheduler() {
     return () => clearInterval(interval)
   }, [addToast])
 
-  return null
+  if (permission !== 'default' || dismissed) return null
+  return (
+    <div className="notif-prompt" role="status">
+      <span>Get reminders when items are about to start?</span>
+      <button type="button" className="notif-prompt-enable" onClick={enable}>
+        Turn on
+      </button>
+      <button type="button" className="notif-prompt-dismiss" onClick={dismiss} aria-label="Not now">
+        ✕
+      </button>
+    </div>
+  )
 }
