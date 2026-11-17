@@ -60,18 +60,25 @@ export function ReminderScheduler() {
   }
 
   useEffect(() => {
-    const notify = (key, kind, message, instanceId) => {
+    const notify = (key, kind, message, instance, item) => {
       if (firedRef.current.has(key)) return
       firedRef.current.add(key)
       const minutesPast = nowMinutes() - (Number(key.split('|')[2]) || 0)
       const maxLate = kind === 'upcoming' ? FRESHNESS_WINDOW_MINUTES : LATE_WINDOW_MINUTES
       if (minutesPast > maxLate) return // stale — don't spam on load
 
-      addToast({ kind, message, instanceId })
+      addToast({ kind, message, instanceId: instance.id })
       playNotificationSound(kind)
       // Only when the app isn't in front of the user; the toast covers that case.
       // Failures are ignored — the in-app toast already covers it.
-      if (document.hidden) showSystemNotification('DayIntent', { body: message, tag: key })
+      if (document.hidden) {
+        showSystemNotification(item.title, {
+          body: message.replace(`"${item.title}" `, '').replace(/^./, (c) => c.toUpperCase()),
+          tag: key,
+          data: { instanceId: instance.id, itemId: item.id, date: instance.date, time: instance.time },
+          actions: [{ action: 'complete', title: 'Mark complete' }],
+        })
+      }
     }
 
     const tick = async () => {
@@ -93,11 +100,11 @@ export function ReminderScheduler() {
             `${instance.id}|upcoming|${upcomingAt}`,
             'upcoming',
             `"${item.title}" starts in 10 minutes`,
-            instance.id
+            instance, item
           )
         }
         if (minutesNow >= startMinutes) {
-          notify(`${instance.id}|start|${startMinutes}`, 'start', `"${item.title}" is starting now`, instance.id)
+          notify(`${instance.id}|start|${startMinutes}`, 'start', `"${item.title}" is starting now`, instance, item)
         }
         if (instance.durationMinutes != null && instance.percentComplete < 100) {
           const endMinutes = startMinutes + instance.durationMinutes
@@ -106,7 +113,7 @@ export function ReminderScheduler() {
               `${instance.id}|finish|${endMinutes}`,
               'finish',
               `"${item.title}" should be finishing now — mark it complete?`,
-              instance.id
+              instance, item
             )
           }
         }
