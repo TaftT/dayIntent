@@ -10,6 +10,14 @@
     ],
     "headers": [
       {
+        "source": "**",
+        "headers": [
+          { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://dayintent-default-rtdb.firebaseio.com wss://dayintent-default-rtdb.firebaseio.com https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://api.weather.gov https://geocoding-api.open-meteo.com; worker-src 'self'; manifest-src 'self'; frame-src 'self' https://dayintent.firebaseapp.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+        ]
+      },
+      {
         "source": "/index.html",
         "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       },

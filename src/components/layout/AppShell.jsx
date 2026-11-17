@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEntityStore } from '../../store/useEntityStore.js'
 import { useAppStore } from '../../store/useAppStore.js'
+import { CrashScreen } from '../shared/ErrorBoundary.jsx'
 import { useAuthStore } from '../../store/useAuthStore.js'
 import { ItemDetailModal } from '../itemdetail/ItemDetailModal.jsx'
 import { CategoryManagerModal } from '../categories/CategoryManagerModal.jsx'
@@ -38,12 +39,14 @@ export function AppShell({ children }) {
   const wide = useIsWide()
   const split = splitOpen && wide
 
+  const [initError, setInitError] = useState(null)
+
   useEffect(() => {
     async function bootstrap() {
       if (import.meta.env.DEV) await seedIfEmpty()
       await init()
     }
-    bootstrap()
+    bootstrap().catch(setInitError)
     initAuth()
   }, [init, initAuth])
 
@@ -68,6 +71,9 @@ export function AppShell({ children }) {
     }
   }, [initialized, topUpRecurring])
 
+  if (initError) {
+    return <CrashScreen error={initError} title="DayIntent couldn’t open its storage" />
+  }
   if (!initialized) {
     return <div className="app-loading">Loading…</div>
   }

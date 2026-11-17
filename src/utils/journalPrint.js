@@ -1,3 +1,4 @@
+import { sanitizeHtml } from './sanitizeHtml.js'
 import { formatDayHeading } from './dateUtils.js'
 import { formatScore, readTally, sideLogged, sideScore } from './moodTally.js'
 
@@ -35,11 +36,11 @@ export function buildJournalPrintHtml(entries, range) {
       const mood = moodLine(j)
       const notes = j.itemNotes
         .filter((n) => !isBlank(n.notes))
-        .map((n) => `<div class="note"><div class="note-title">${esc(n.title)}</div>${n.notes}</div>`)
+        .map((n) => `<div class="note"><div class="note-title">${esc(n.title)}</div>${sanitizeHtml(n.notes)}</div>`)
         .join('')
       return `<article>
   <h2>${esc(formatDayHeading(j.date))}${mood ? `<span class="mood">${esc(mood)}</span>` : ''}</h2>
-  ${isBlank(j.content) ? '' : `<div class="content">${j.content}</div>`}
+  ${isBlank(j.content) ? '' : `<div class="content">${sanitizeHtml(j.content)}</div>`}
   ${notes}
 </article>`
     })
