@@ -18,7 +18,7 @@ export async function requestNotificationPermission() {
 }
 
 /** @returns {Promise<boolean>} whether a system notification was shown */
-export async function showSystemNotification(title, { body, tag } = {}) {
+export async function showSystemNotification(title, { body, tag, data, actions } = {}) {
   if (notificationPermission() !== 'granted') return false
   const options = {
     body,
@@ -27,7 +27,8 @@ export async function showSystemNotification(title, { body, tag } = {}) {
     badge: '/icons/icon-192.png',
     vibrate: [200, 100, 200],
     renotify: Boolean(tag),
-    data: { url: '/' },
+    data: data ?? {},
+    actions: actions ?? [],
   }
   try {
     const reg = await navigator.serviceWorker?.getRegistration()

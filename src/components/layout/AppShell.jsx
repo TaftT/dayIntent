@@ -15,6 +15,7 @@ import { AuthModal } from '../auth/AuthModal.jsx'
 import { UnlockPrompt } from '../auth/UnlockPrompt.jsx'
 import { SyncMismatchPrompt } from '../auth/SyncMismatchPrompt.jsx'
 import { ReminderScheduler } from '../notifications/ReminderScheduler.jsx'
+import { NotificationActions } from '../notifications/NotificationActions.jsx'
 import { ToastContainer } from '../notifications/ToastContainer.jsx'
 import { BottomNav } from './BottomNav.jsx'
 import { SplitPane } from './SplitPane.jsx'
@@ -132,6 +133,7 @@ export function AppShell({ children }) {
       {activeModal?.type === 'unlock' && <UnlockPrompt />}
       {activeModal?.type === 'syncMismatch' && <SyncMismatchPrompt />}
       <ReminderScheduler />
+      <NotificationActions />
       <ToastContainer />
     </div>
   )
