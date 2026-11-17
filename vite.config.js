@@ -27,6 +27,7 @@ export default defineConfig({
         // Firebase Auth/RTDB traffic goes to other origins and is untouched
         // by this — only same-origin static assets (the app shell) get
         // precached, which is what makes the app launchable offline.
+        importScripts: ['notification-sw.js'],
         globPatterns: ['**/*.{js,css,html,svg,png}'],
       },
     }),

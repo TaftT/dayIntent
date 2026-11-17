@@ -4114,3 +4114,39 @@
   word-break: break-all;
   user-select: all;
 }
+
+.notif-prompt {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 12px);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-surface, #fff);
+  color: var(--color-text, #111);
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  font-size: 0.9rem;
+}
+.notif-prompt span { flex: 1; }
+.notif-prompt-enable {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  background: #3b6fe0;
+  color: #fff;
+  font-weight: 600;
+}
+.notif-prompt-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1rem;
+  padding: 4px 6px;
+}
