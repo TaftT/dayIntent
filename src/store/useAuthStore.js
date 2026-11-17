@@ -81,9 +81,15 @@ export const useAuthStore = create((set, get) => ({
     if (!stored || get().masterKey || get().user?.uid !== uid) return
     try {
       await get()._completeSignIn(uid, email, stored)
-    } catch {
-      await clearMasterKeys()
+    } catch (err) {
       set({ masterKey: null, needsUnlock: true })
+      if (err instanceof syncEngine.WrongKeyError) {
+        await clearMasterKeys() // the remembered key really is stale (e.g. password changed elsewhere)
+      } else if (typeof window !== 'undefined') {
+        // Couldn't reach the cloud (a phone just restarted, no signal yet): the
+        // remembered key is fine, so keep it and quietly try again once online.
+        window.addEventListener('online', () => get()._restoreSession(uid, email), { once: true })
+      }
     }
   },
 

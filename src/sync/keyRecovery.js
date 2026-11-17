@@ -26,7 +26,7 @@ import {
   wrapRaw,
   unwrapRaw,
 } from '../firebase/crypto.js'
-import { getOrCreateSalt, verifyMasterKey, WrongKeyError } from './syncEngine.js'
+import { getOrCreateSalt, verifyMasterKey, withTimeout, WrongKeyError } from './syncEngine.js'
 
 const recoveryPath = (uid) => `users/${uid}/meta/recovery`
 const keyWrapPath = (uid) => `users/${uid}/meta/keyWrap`
@@ -48,7 +48,7 @@ export class NoRecoveryKeyError extends Error {
 /** Raw master-key bytes for this password, or null when it doesn't unwrap the stored keyWrap. */
 async function rawMasterFor(uid, password) {
   const salt = await getOrCreateSalt(uid)
-  const snap = await get(ref(rtdb, keyWrapPath(uid)))
+  const snap = await withTimeout(get(ref(rtdb, keyWrapPath(uid))))
   if (snap.exists()) {
     try {
       return await unwrapRaw(snap.val(), await deriveMasterKey(password, salt))
